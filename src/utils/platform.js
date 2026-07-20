@@ -4,21 +4,33 @@ import { Capacitor } from '@capacitor/core';
  * Check if running in native mobile app (not web browser)
  */
 export const isNativePlatform = () => {
-  return Capacitor.isNativePlatform();
+  try {
+    return Capacitor?.isNativePlatform() || false;
+  } catch (error) {
+    return false;
+  }
 };
 
 /**
  * Check if running on web
  */
 export const isWeb = () => {
-  return Capacitor.getPlatform() === 'web';
+  try {
+    return Capacitor?.getPlatform() === 'web';
+  } catch (error) {
+    return true; // Default to web if Capacitor not available
+  }
 };
 
 /**
  * Get current platform (ios, android, web)
  */
 export const getPlatform = () => {
-  return Capacitor.getPlatform();
+  try {
+    return Capacitor?.getPlatform() || 'web';
+  } catch (error) {
+    return 'web';
+  }
 };
 
 /**
