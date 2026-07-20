@@ -1,3 +1,4 @@
+import { isNativePlatform, withTimeout } from '../utils/platform'
 import {
   collection,
   doc,
@@ -148,21 +149,32 @@ export async function addPet(ownerUid, petData) {
 export async function getPets(ownerUid) {
   if (!ownerUid) return []
   
+  // Read from localStorage for instant loading
+  const getFromLocalStorage = () => {
+    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    return allPets
+      .filter(p => p.owner_uid === ownerUid)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  }
+  
+  // On mobile, use localStorage as primary (instant loading)
+  if (isNativePlatform()) {
+    console.log('📱 Mobile: Loading pets from localStorage (instant)')
+    return getFromLocalStorage()
+  }
+  
+  // On web, try Firebase first with timeout
   try {
     const q = query(
       collection(db, 'pets'), 
       where('owner_uid', '==', ownerUid),
       orderBy('createdAt', 'desc')
     )
-    const snap = await getDocs(q)
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    const snap = await withTimeout(getDocs(q), 3000, getFromLocalStorage)
+    return snap.docs ? snap.docs.map((d) => ({ id: d.id, ...d.data() })) : snap
   } catch (error) {
     console.warn('Firebase unavailable, using localStorage:', error.message)
-    // Fallback to localStorage
-    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-    return allPets
-      .filter(p => p.owner_uid === ownerUid)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    return getFromLocalStorage()
   }
 }
 
