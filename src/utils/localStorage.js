@@ -57,20 +57,6 @@ export function logStorageUsage() {
   })
 }
 
-// Initialize - run on app start
-export function initLocalStorage() {
-  // Clean old alerts on startup
-  cleanOldAlerts()
-  
-  // Initialize pet places seed data
-  initializePetPlacesData()
-  
-  // Log current usage
-  if (import.meta.env.DEV) {
-    logStorageUsage()
-  }
-}
-
 // Initialize pet places
 function initializePetPlacesData() {
   const existing = localStorage.getItem('paway_pet_places')
@@ -80,5 +66,49 @@ function initializePetPlacesData() {
     import('../data/petPlaces').then(module => {
       module.initializePetPlaces()
     })
+  }
+}
+
+// Initialize sample pet if none exist (for easier testing)
+function initializeSamplePet() {
+  const existing = localStorage.getItem('paway_pets')
+  
+  if (!existing || existing === '[]') {
+    const samplePet = {
+      id: 'sample_pet_1',
+      name: 'Max',
+      species: 'dog',
+      breed: 'Golden Retriever',
+      age: '3 years',
+      gender: 'male',
+      weight: '30 kg',
+      chipNumber: '123456789012345',
+      medicalInfo: 'Vaccinated, no allergies',
+      behaviorTags: ['friendly', 'energetic', 'playful'],
+      photos: [],
+      owner_uid: 'guest',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    
+    localStorage.setItem('paway_pets', JSON.stringify([samplePet]))
+    console.log('🐕 Initialized sample pet: Max')
+  }
+}
+
+// Initialize - run on app start
+export function initLocalStorage() {
+  // Clean old alerts on startup
+  cleanOldAlerts()
+  
+  // Initialize pet places seed data
+  initializePetPlacesData()
+  
+  // Initialize sample pet for easier testing
+  initializeSamplePet()
+  
+  // Log current usage
+  if (import.meta.env.DEV) {
+    logStorageUsage()
   }
 }
