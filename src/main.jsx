@@ -1,29 +1,32 @@
 import { createRoot } from 'react-dom/client'
-import { AppProvider } from './context/AppContext'
-import App from './App'
 import './index.css'
-import { initLocalStorage } from './utils/localStorage'
 
-// Initialize localStorage cleanup
-try {
-  initLocalStorage()
-} catch (error) {
-  console.error('Initialization error:', error)
+function App() {
+  return (
+    <div style={{ 
+      padding: '20px', 
+      fontSize: '24px', 
+      fontWeight: 'bold',
+      color: '#6366f1'
+    }}>
+      <h1>Paway Test</h1>
+      <p>If you see this, React is working!</p>
+      <button 
+        onClick={() => alert('Button works!')}
+        style={{
+          padding: '10px 20px',
+          fontSize: '18px',
+          background: '#6366f1',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          marginTop: '20px'
+        }}
+      >
+        Test Button
+      </button>
+    </div>
+  )
 }
 
-// Seed database in background (delayed, don't block render)
-setTimeout(() => {
-  try {
-    import('./firebase/seedData').then(({ seedDatabase }) => {
-      seedDatabase().catch(err => console.warn('Seed database failed:', err))
-    })
-  } catch (error) {
-    console.warn('Could not load seed data:', error)
-  }
-}, 2000)
-
-createRoot(document.getElementById('root')).render(
-  <AppProvider>
-    <App />
-  </AppProvider>,
-)
+createRoot(document.getElementById('root')).render(<App />)
