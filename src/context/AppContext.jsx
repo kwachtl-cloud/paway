@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect } 
 import { translations } from '../data/translations'
 import { auth } from '../firebase/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
+import { initializeBackButtonHandler, removeBackButtonHandler } from '../utils/backButton'
 
 const AppContext = createContext()
 
@@ -30,6 +31,12 @@ export function AppProvider({ children }) {
     })
     return () => unsubscribe()
   }, [])
+
+  // Initialize Android back button handler
+  useEffect(() => {
+    initializeBackButtonHandler(goBack)
+    return () => removeBackButtonHandler()
+  }, [goBack])
 
   const t = useCallback(
     (key) => {
