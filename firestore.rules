@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles
+      allow read: if isAuthenticated();
+      
+      // Only user can create their own profile
+      allow create: if isAuthenticated() && isOwner(userId);
+      
+      // Only user can update/delete their own profile
+      allow update, delete: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ============================================
+    // PETS COLLECTION - MVP Feature #3
+    // ============================================
+    match /pets/{petId} {
+      // Anyone authenticated can read pet profiles (for SOS alerts)
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can create a pet
+      allow create: if isAuthenticated();
+      
+      // Only pet owner can update/delete
+      allow update, delete: if isAuthenticated() && 
+        resource.data.owner_uid == request.auth.uid;
+    }
+    
+    // ============================================
+    // SOS ALERTS - MVP Feature #1
+    // ============================================
+    match /sos_alerts/{alertId} {
+      // All authenticated users can read SOS alerts (to help find lost pets)
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can create an SOS alert
+      allow create: if isAuthenticated();
+      
+      // Alert creator can update their own alert
+      // Anyone can update status to 'resolved' (if they found the pet)
+      allow update: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || 
+         request.resource.data.status == 'resolved');
+      
+      // Only creator can delete
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================
+    // PARK CHECK-INS - MVP Feature #2
+    // ============================================
+    match /park_checkins/{checkinId} {
+      // All authenticated users can see who's at the park
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can check in
+      allow create: if isAuthenticated();
+      
+      // Only check-in creator can update/delete their check-in
+      allow update, delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ============================================
+    // PET-FRIENDLY PLACES - MVP Feature #2
+    // ============================================
+    match /pet_places/{placeId} {
+      // All authenticated users can read places
+      allow read: if isAuthenticated();
+      
+      // Any authenticated user can add a place
+      allow create: if isAuthenticated();
+      
+      // Place creator can update their own place
+      allow update: if isAuthenticated() && 
+        resource.data.addedBy == request.auth.uid;
+      
+      // Only admins can delete places (for now, no one can delete)
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // LEGACY COLLECTIONS (keep for backward compatibility)
+    // ============================================
+    match /services/{serviceId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Read-only for MVP
+    }
+    
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Disabled for MVP Phase 1
+    }
+    
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Disabled for MVP Phase 1
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Disabled for MVP Phase 1
+      }
+    }
+    
+    match /nearby_dogs/{dogId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // For testing
+    }
+  }
+}
