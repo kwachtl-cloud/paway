@@ -1,29 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { GoogleMap, Marker } from '@react-google-maps/api'
 import { 
   Dog, 
   Users,
   CheckCircle,
   ArrowLeft,
-  Clock
+  Clock,
+  MapPin
 } from 'lucide-react'
 import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById } from '../firebase/services'
 import PetDetailModal from '../components/PetDetailModal'
 import { getCurrentPosition } from '../utils/geolocation'
-
-const mapContainerStyle = {
-  width: '100%',
-  height: '100%'
-}
-
-const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  streetViewControl: false,
-  mapTypeControl: false,
-  fullscreenControl: false,
-}
 
 const placeTypeIcons = {
   dog_park: '🏞️',
@@ -35,8 +22,6 @@ const placeTypeIcons = {
 export default function ParkRadarScreen() {
   const { t, goBack, user } = useApp()
   
-  // Map state
-  const [mapCenter, setMapCenter] = useState({ lat: 52.2297, lng: 21.0122 })
   const [currentLocation, setCurrentLocation] = useState(null)
   const [places, setPlaces] = useState([])
   const [selectedPlace, setSelectedPlace] = useState(null)
@@ -64,12 +49,11 @@ export default function ParkRadarScreen() {
           lng: position.coords.longitude
         }
         setCurrentLocation(loc)
-        setMapCenter(loc)
       })
       .catch((error) => {
         console.error('Geolocation error:', error)
         // Default to Wrocław
-        setMapCenter({ lat: 51.1079, lng: 17.0385 })
+        setCurrentLocation({ lat: 51.1079, lng: 17.0385 })
       })
   }, [])
   
@@ -78,79 +62,58 @@ export default function ParkRadarScreen() {
     const loadPlaces = async () => {
       setLoading(true)
       try {
-        const center = currentLocation || mapCenter
-        const data = await getPetPlaces(center.lat, center.lng, 10)
-        setPlaces(data)
-        console.log('📍 Loaded', data.length, 'pet-friendly places')
+        const allPlaces = await getPetPlaces()
+        setPlaces(allPlaces)
       } catch (error) {
         console.error('Error loading places:', error)
       } finally {
         setLoading(false)
       }
     }
-    
     loadPlaces()
-  }, [currentLocation])
+  }, [])
   
-  // Load pets
+  // Load pets for check-in
   useEffect(() => {
-    const loadPets = async () => {
-      if (!user?.uid) return
-      
-      try {
-        const data = await getPets(user.uid)
-        setPets(data)
-      } catch (error) {
-        console.error('Error loading pets:', error)
-      }
-    }
+    if (!user?.uid) return
     
-    loadPets()
+    getPets(user.uid)
+      .then(userPets => setPets(userPets))
+      .catch(err => console.error('Error loading pets:', err))
   }, [user])
   
-  // Load check-ins
+  // Load active check-ins when place selected
   useEffect(() => {
-    if (!selectedPlace) {
-      setActiveCheckins([])
-      return
-    }
+    if (!selectedPlace) return
     
-    const loadCheckins = async () => {
+    const loadCheckIns = async () => {
       try {
-        const data = await getActiveCheckinsForPlace(selectedPlace.id)
-        setActiveCheckins(data)
+        const checkins = await getActiveCheckinsForPlace(selectedPlace.id)
+        setActiveCheckins(checkins)
       } catch (error) {
         console.error('Error loading check-ins:', error)
       }
     }
     
-    loadCheckins()
-    const interval = setInterval(loadCheckins, 30000)
+    loadCheckIns()
+    const interval = setInterval(loadCheckIns, 30000) // Refresh every 30s
     
-    // Real-time listener for check-in updates
-    const handleCheckinsUpdated = (event) => {
-      if (event.detail.placeId === selectedPlace.id) {
-        loadCheckins()
-      }
-    }
-    window.addEventListener('parkCheckinsUpdated', handleCheckinsUpdated)
-    
-    return () => {
-      clearInterval(interval)
-      window.removeEventListener('parkCheckinsUpdated', handleCheckinsUpdated)
-    }
+    return () => clearInterval(interval)
   }, [selectedPlace])
   
-  const handleMarkerClick = (place) => {
+  const handlePlaceClick = (place) => {
     setSelectedPlace(place)
   }
   
   const handleCheckInClick = () => {
     if (pets.length === 0) {
-      alert('Please add a pet in Pet Passport first!')
+      alert('Please add a pet first in Pet Passport')
       return
     }
     setShowCheckInDialog(true)
+    if (pets.length === 1) {
+      setSelectedPet(pets[0])
+    }
   }
   
   const handleCheckInSubmit = async () => {
@@ -160,27 +123,20 @@ export default function ParkRadarScreen() {
     try {
       await checkInToPark(
         user.uid,
-        user.name || 'User',
         selectedPet.id,
-        selectedPet.name,
-        selectedPet.photos?.[0] || null,
         selectedPlace.id,
-        selectedPlace.name,
-        selectedPlace.location.lat,
-        selectedPlace.location.lng,
         checkinDuration
       )
       
-      const updated = await getActiveCheckinsForPlace(selectedPlace.id)
-      setActiveCheckins(updated)
-      
+      alert(`Checked in to ${selectedPlace.name}!`)
       setShowCheckInDialog(false)
       setSelectedPet(null)
       
-      alert(`${selectedPet.name} checked in at ${selectedPlace.name}! 🎉`)
+      const updatedCheckins = await getActiveCheckinsForPlace(selectedPlace.id)
+      setActiveCheckins(updatedCheckins)
     } catch (error) {
       console.error('Error checking in:', error)
-      alert('Error checking in.')
+      alert('Failed to check in')
     } finally {
       setSubmitting(false)
     }
@@ -199,6 +155,17 @@ export default function ParkRadarScreen() {
     }
   }
   
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Dog className="animate-bounce mx-auto mb-4" size={48} />
+          <p className="text-muted-foreground">Loading places...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 z-10">
@@ -211,176 +178,138 @@ export default function ParkRadarScreen() {
         </div>
       </div>
       
-      <div className="flex-1 relative">
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          center={mapCenter}
-          zoom={13}
-          options={mapOptions}
-        >
-          {currentLocation && (
-            <Marker
-              position={currentLocation}
-              icon={{
-                path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
-                scale: 8,
-                fillColor: '#3b82f6',
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 2,
-              }}
-            />
-          )}
-          
-          {places.map((place) => (
-            <Marker
-              key={place.id}
-              position={{ lat: place.location.lat, lng: place.location.lng }}
-              onClick={() => handleMarkerClick(place)}
-              label={{
-                text: placeTypeIcons[place.type] || '📍',
-                fontSize: '24px'
-              }}
-            />
-          ))}
-        </GoogleMap>
-        
-        {selectedPlace && (
-          <div className="absolute bottom-4 left-4 right-4 bg-card border border-border rounded-2xl p-4 shadow-xl max-h-[60vh] overflow-y-auto">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="text-3xl">{placeTypeIcons[selectedPlace.type]}</div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold">{selectedPlace.name}</h3>
-                <p className="text-sm text-muted-foreground">{selectedPlace.description}</p>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {places.map((place) => (
+          <div
+            key={place.id}
+            onClick={() => handlePlaceClick(place)}
+            className={`bg-card border rounded-xl p-4 cursor-pointer transition-all ${
+              selectedPlace?.id === place.id ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="text-3xl">{placeTypeIcons[place.type]}</div>
+              <div className="flex-1">
+                <h3 className="font-semibold">{place.name}</h3>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                  <MapPin size={12} />
+                  {place.address}
+                </p>
+                {place.open247 && (
+                  <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                    24/7 Open
+                  </span>
+                )}
               </div>
-              <button onClick={() => setSelectedPlace(null)}>✕</button>
             </div>
             
-            {selectedPlace.type === 'dog_park' && (
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={16} className="text-primary" />
-                  <span className="text-sm font-semibold">
-                    {activeCheckins.length} {activeCheckins.length === 1 ? 'dog' : 'dogs'} here now
-                  </span>
+            {selectedPlace?.id === place.id && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Users size={16} />
+                    <span>{activeCheckins.length} dogs here now</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCheckInClick()
+                    }}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+                  >
+                    Check In
+                  </button>
                 </div>
                 
                 {activeCheckins.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {activeCheckins.slice(0, 6).map((checkin) => (
-                      <button
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {activeCheckins.map((checkin) => (
+                      <div
                         key={checkin.id}
-                        onClick={() => handlePetClick(checkin)}
-                        className="flex flex-col items-center text-center hover:bg-secondary/50 rounded-xl p-2 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handlePetClick(checkin)
+                        }}
+                        className="flex-shrink-0 w-16 text-center cursor-pointer"
                       >
-                        {checkin.petPhoto ? (
-                          <img
-                            src={checkin.petPhoto}
-                            alt={checkin.petName}
-                            className="w-12 h-12 rounded-full object-cover mb-1 ring-2 ring-primary/20"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-1 ring-2 ring-primary/20">
-                            <Dog size={20} />
-                          </div>
-                        )}
-                        <p className="text-xs font-medium truncate w-full">{checkin.petName}</p>
-                      </button>
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+                          <Dog size={24} className="text-primary" />
+                        </div>
+                        <p className="text-xs font-medium truncate">{checkin.petName}</p>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             )}
-            
-            {selectedPlace.type === 'dog_park' && user && (
-              <button onClick={handleCheckInClick} className="w-full btn btn-primary btn-sm">
-                <CheckCircle size={16} className="mr-2" />
-                Check In
-              </button>
-            )}
           </div>
-        )}
+        ))}
       </div>
       
+      {/* Check-in dialog */}
       {showCheckInDialog && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Check in to park</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full">
+            <h2 className="text-xl font-bold mb-4">Check In</h2>
             
-            <div className="mb-4">
-              <label className="text-sm font-semibold mb-2 block">Select pet</label>
-              <div className="space-y-2">
-                {pets.map((pet) => (
-                  <button
-                    key={pet.id}
-                    onClick={() => setSelectedPet(pet)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 ${
-                      selectedPet?.id === pet.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border'
-                    }`}
-                  >
-                    {pet.photos?.[0] ? (
-                      <img src={pet.photos[0]} alt={pet.name} className="w-12 h-12 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                        <Dog size={20} />
-                      </div>
-                    )}
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold">{pet.name}</p>
-                      <p className="text-xs text-muted-foreground">{pet.breed || pet.species}</p>
-                    </div>
-                  </button>
-                ))}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Pet</label>
+                <select
+                  value={selectedPet?.id || ''}
+                  onChange={(e) => {
+                    const pet = pets.find(p => p.id === e.target.value)
+                    setSelectedPet(pet)
+                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                >
+                  <option value="">Choose a pet</option>
+                  {pets.map(pet => (
+                    <option key={pet.id} value={pet.id}>{pet.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Duration</label>
+                <select
+                  value={checkinDuration}
+                  onChange={(e) => setCheckinDuration(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+                >
+                  <option value={1}>1 hour</option>
+                  <option value={2}>2 hours</option>
+                  <option value={3}>3 hours</option>
+                  <option value={4}>4 hours</option>
+                </select>
               </div>
             </div>
             
-            <div className="mb-6">
-              <label className="text-sm font-semibold mb-2 block">
-                <Clock size={14} className="inline mr-1" />
-                Duration
-              </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4].map((hours) => (
-                  <button
-                    key={hours}
-                    onClick={() => setCheckinDuration(hours)}
-                    className={`flex-1 py-2 rounded-xl border-2 font-semibold ${
-                      checkinDuration === hours
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border'
-                    }`}
-                  >
-                    {hours}h
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {
                   setShowCheckInDialog(false)
                   setSelectedPet(null)
                 }}
-                className="flex-1 btn btn-outline"
+                className="flex-1 px-4 py-2 border border-border rounded-lg"
+                disabled={submitting}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCheckInSubmit}
                 disabled={!selectedPet || submitting}
-                className="flex-1 btn btn-primary disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium disabled:opacity-50"
               >
-                {submitting ? 'Checking in...' : 'Confirm'}
+                {submitting ? 'Checking in...' : 'Check In'}
               </button>
             </div>
           </div>
         </div>
       )}
       
-      {showPetDetail && (
+      {/* Pet Detail Modal */}
+      {showPetDetail && selectedPetDetail && selectedCheckin && (
         <PetDetailModal
           pet={selectedPetDetail}
           checkin={selectedCheckin}
