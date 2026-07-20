@@ -117,31 +117,48 @@ export async function getUsersInRadius(centerLat, centerLng, radiusInKm = 5) {
 
 // === PETS ===
 export async function addPet(ownerUid, petData) {
-  try {
-    // Try Firebase first
-    const docRef = await addDoc(collection(db, 'pets'), {
-      ...petData,
-      owner_uid: ownerUid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    })
-    return docRef.id
-  } catch (error) {
-    console.warn('Firebase unavailable, using localStorage:', error.message)
-    // Fallback to localStorage for local dev/testing
-    const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const pet = {
-      id: petId,
-      ...petData,
-      owner_uid: ownerUid,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-    
+  const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const pet = {
+    id: petId,
+    ...petData,
+    owner_uid: ownerUid,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  
+  // On mobile, save to localStorage immediately (instant)
+  if (isNativePlatform()) {
+    console.log('📱 Mobile: Saving pet to localStorage (instant)')
     const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     existingPets.push(pet)
     localStorage.setItem('paway_pets', JSON.stringify(existingPets))
-    
+    return petId
+  }
+  
+  // On web, try Firebase with timeout
+  try {
+    const docRef = await withTimeout(
+      addDoc(collection(db, 'pets'), {
+        ...petData,
+        owner_uid: ownerUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+      3000,
+      () => {
+        // Fallback to localStorage
+        const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+        existingPets.push(pet)
+        localStorage.setItem('paway_pets', JSON.stringify(existingPets))
+        return { id: petId }
+      }
+    )
+    return docRef.id
+  } catch (error) {
+    console.warn('Firebase unavailable, using localStorage:', error.message)
+    const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    existingPets.push(pet)
+    localStorage.setItem('paway_pets', JSON.stringify(existingPets))
     return petId
   }
 }
@@ -190,13 +207,9 @@ export async function getPet(petId) {
 }
 
 export async function updatePet(petId, data) {
-  try {
-    return updateDoc(doc(db, 'pets', petId), {
-      ...data,
-      updatedAt: serverTimestamp(),
-    })
-  } catch (error) {
-    console.warn('Firebase unavailable, using localStorage')
+  // On mobile, update localStorage immediately
+  if (isNativePlatform()) {
+    console.log('📱 Mobile: Updating pet in localStorage (instant)')
     const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     const index = allPets.findIndex(p => p.id === petId)
     if (index !== -1) {
@@ -207,12 +220,60 @@ export async function updatePet(petId, data) {
       }
       localStorage.setItem('paway_pets', JSON.stringify(allPets))
     }
+    return
+  }
+  
+  // On web, try Firebase with timeout
+  try {
+    await withTimeout(
+      updateDoc(doc(db, 'pets', petId), {
+        ...data,
+        updatedAt: serverTimestamp(),
+      }),
+      3000,
+      () => {
+        // Fallback
+        const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+        const index = allPets.findIndex(p => p.id === petId)
+        if (index !== -1) {
+          allPets[index] = { ...allPets[index], ...data, updatedAt: new Date().toISOString() }
+          localStorage.setItem('paway_pets', JSON.stringify(allPets))
+        }
+      }
+    )
+  } catch (error) {
+    console.warn('Firebase unavailable, using localStorage')
+    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    const index = allPets.findIndex(p => p.id === petId)
+    if (index !== -1) {
+      allPets[index] = { ...allPets[index], ...data, updatedAt: new Date().toISOString() }
+      localStorage.setItem('paway_pets', JSON.stringify(allPets))
+    }
   }
 }
 
 export async function deletePet(petId) {
+  // On mobile, delete from localStorage immediately
+  if (isNativePlatform()) {
+    console.log('📱 Mobile: Deleting pet from localStorage (instant)')
+    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    const filtered = allPets.filter(p => p.id !== petId)
+    localStorage.setItem('paway_pets', JSON.stringify(filtered))
+    return
+  }
+  
+  // On web, try Firebase with timeout
   try {
-    return deleteDoc(doc(db, 'pets', petId))
+    await withTimeout(
+      deleteDoc(doc(db, 'pets', petId)),
+      3000,
+      () => {
+        // Fallback
+        const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+        const filtered = allPets.filter(p => p.id !== petId)
+        localStorage.setItem('paway_pets', JSON.stringify(filtered))
+      }
+    )
   } catch (error) {
     console.warn('Firebase unavailable, using localStorage')
     const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
