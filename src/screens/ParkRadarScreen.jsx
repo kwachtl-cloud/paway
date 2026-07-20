@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById } from '../firebase/services'
 import PetDetailModal from '../components/PetDetailModal'
+import { getCurrentPosition } from '../utils/geolocation'
 
 const mapContainerStyle = {
   width: '100%',
@@ -56,22 +57,20 @@ export default function ParkRadarScreen() {
   
   // Get user location
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          }
-          setCurrentLocation(loc)
-          setMapCenter(loc)
-        },
-        (error) => {
-          console.error('Geolocation error:', error)
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    }
+    getCurrentPosition()
+      .then((position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }
+        setCurrentLocation(loc)
+        setMapCenter(loc)
+      })
+      .catch((error) => {
+        console.error('Geolocation error:', error)
+        // Default to Wrocław
+        setMapCenter({ lat: 51.1079, lng: 17.0385 })
+      })
   }, [])
   
   // Load places

@@ -3,6 +3,7 @@ import { Bell, MapPin, PawPrint, AlertTriangle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { getSOSAlertsNearby } from '../firebase/services'
 import SOSAlertCard from '../components/SOSAlertCard'
+import { getCurrentPosition } from '../utils/geolocation'
 
 export default function HomeScreen() {
   const { t, navigate, user } = useApp()
@@ -14,28 +15,25 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!user?.uid) return
     
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          setUserLocation(loc)
-          
-          // Load nearby SOS alerts
-          try {
-            setLoadingAlerts(true)
-            const alerts = await getSOSAlertsNearby(loc.lat, loc.lng, 10) // 10km radius
-            setSosAlerts(alerts.slice(0, 3)) // Show max 3 on home
-          } catch (error) {
-            console.error('Error loading SOS alerts:', error)
-          } finally {
-            setLoadingAlerts(false)
-          }
-        },
-        (error) => {
-          console.error('Geolocation error:', error)
+    getCurrentPosition()
+      .then(async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(loc)
+        
+        // Load nearby SOS alerts
+        try {
+          setLoadingAlerts(true)
+          const alerts = await getSOSAlertsNearby(loc.lat, loc.lng, 10) // 10km radius
+          setSosAlerts(alerts.slice(0, 3)) // Show max 3 on home
+        } catch (error) {
+          console.error('Error loading SOS alerts:', error)
+        } finally {
+          setLoadingAlerts(false)
         }
-      )
-    }
+      })
+      .catch((error) => {
+        console.error('Geolocation error:', error)
+      })
   }, [user])
 
   // MVP Quick Actions - tylko kluczowe funkcjonalności

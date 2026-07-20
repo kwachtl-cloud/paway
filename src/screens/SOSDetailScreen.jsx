@@ -15,6 +15,7 @@ import {
   markAlertAsViewed,
   resolveSOSAlert 
 } from '../firebase/services'
+import { getCurrentPosition } from '../utils/geolocation'
 
 export default function SOSDetailScreen() {
   const { t, goBack, user, selectedAlertId } = useApp()
@@ -59,31 +60,26 @@ export default function SOSDetailScreen() {
     setSubmitting(true)
     try {
       // Get current location for sighting
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (pos) => {
-            await reportSighting(
-              alert.id,
-              user.uid,
-              user.name || 'User',
-              pos.coords.latitude,
-              pos.coords.longitude,
-              sightingNote.trim()
-            )
-            
-            setSubmitted(true)
-            setShowSightingForm(false)
-            setSightingNote('')
-            await loadAlert() // Reload to show new sighting
-          },
-          (error) => {
-            console.error('Location error:', error)
-            alert(t('locationRequired'))
-          }
-        )
-      }
+      const pos = await getCurrentPosition()
+      
+      await reportSighting(
+        alert.id,
+        user.uid,
+        user.name || 'User',
+        pos.coords.latitude,
+        pos.coords.longitude,
+        sightingNote.trim()
+      )
+      
+      setSubmitted(true)
+      setShowSightingForm(false)
+      setSightingNote('')
+      await loadAlert() // Reload to show new sighting
     } catch (error) {
       console.error('Error reporting sighting:', error)
+      if (error.message === 'Geolocation not available') {
+        alert(t('locationRequired'))
+      }
     } finally {
       setSubmitting(false)
     }

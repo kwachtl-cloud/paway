@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext'
 import { AlertTriangle, ArrowLeft, CheckCircle, MapPin, Loader2, Phone, MessageSquare } from 'lucide-react'
 import { sendSOSAlert, updateUserLocation } from '../firebase/services'
 import { getPets } from '../firebase/services'
+import { getCurrentPosition } from '../utils/geolocation'
 
 export default function SOSScreen() {
   const { t, goBack, user } = useApp()
@@ -42,9 +43,9 @@ export default function SOSScreen() {
   
   // Get current location
   useEffect(() => {
-    if (navigator.geolocation && step >= 2) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
+    if (step >= 2) {
+      getCurrentPosition()
+        .then((pos) => {
           const loc = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
@@ -57,14 +58,12 @@ export default function SOSScreen() {
               console.error('Error updating location:', err)
             )
           }
-        },
-        (error) => {
+        })
+        .catch((error) => {
           console.error('Geolocation error:', error)
-          // Default location (Warsaw center) if denied
-          setLocation({ lat: 52.2297, lng: 21.0122 })
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
+          // Default location (Wroclaw center) if denied
+          setLocation({ lat: 51.1079, lng: 17.0385 })
+        })
     }
   }, [step, user])
   
