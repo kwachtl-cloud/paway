@@ -5,11 +5,16 @@ import {
   Users,
   CheckCircle,
   Clock,
-  MapPin
+  MapPin,
+  List,
+  Map as MapIcon
 } from 'lucide-react'
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api'
 import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById } from '../firebase/services'
 import PetDetailModal from '../components/PetDetailModal'
 import { getCurrentPosition } from '../utils/geolocation'
+
+const MAPS_API_KEY = 'AIzaSyCT3CP1dnyycCUsvrmPjUWhaaKubSYC1AU'
 
 const placeTypeIcons = {
   dog_park: '🏞️',
@@ -21,10 +26,12 @@ const placeTypeIcons = {
 export default function ParkRadarScreen() {
   const { t, user } = useApp()
   
+  const [viewMode, setViewMode] = useState('map') // 'map' or 'list'
   const [currentLocation, setCurrentLocation] = useState(null)
   const [places, setPlaces] = useState([])
   const [selectedPlace, setSelectedPlace] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mapLoaded, setMapLoaded] = useState(false)
   
   // Check-in state
   const [showCheckInDialog, setShowCheckInDialog] = useState(false)
@@ -172,15 +179,117 @@ export default function ParkRadarScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-        <div className="flex-1">
-          <h1 className="text-lg font-bold">Park Radar</h1>
-          <p className="text-xs text-muted-foreground">{places.length} places nearby</p>
+    <LoadScript 
+      googleMapsApiKey={MAPS_API_KEY}
+      onLoad={() => setMapLoaded(true)}
+      onError={(error) => {
+        console.error('Google Maps loading error:', error)
+        setViewMode('list') // Fallback to list if Maps fails
+      }}
+    >
+      <div className="min-h-screen bg-background pb-32">
+        <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+          <div className="flex-1">
+            <h1 className="text-lg font-bold">Park Radar</h1>
+            <p className="text-xs text-muted-foreground">{places.length} places nearby</p>
+          </div>
+          
+          {/* Toggle between Map and List */}
+          <button
+            onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+          >
+            {viewMode === 'map' ? (
+              <>
+                <List size={16} />
+                Lista
+              </>
+            ) : (
+              <>
+                <MapIcon size={16} />
+                Mapa
+              </>
+            )}
+          </button>
         </div>
-      </div>
-      
-      <div className="p-4 space-y-3 pb-20">
+        
+        {/* Map View */}
+        {viewMode === 'map' && mapLoaded && currentLocation && (
+          <div className="h-[calc(100vh-140px)]">
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={currentLocation}
+              zoom={13}
+              options={{
+                disableDefaultUI: false,
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+              }}
+            >
+              {/* User location marker */}
+              <Marker
+                position={currentLocation}
+                icon={{
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  scale: 8,
+                  fillColor: '#4F46E5',
+                  fillOpacity: 1,
+                  strokeColor: '#ffffff',
+                  strokeWeight: 2,
+                }}
+              />
+              
+              {/* Place markers */}
+              {places.map((place) => (
+                <Marker
+                  key={place.id}
+                  position={{ lat: place.location.lat, lng: place.location.lng }}
+                  onClick={() => setSelectedPlace(place)}
+                  icon={{
+                    url: `data:image/svg+xml;utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><text x="20" y="30" font-size="30" text-anchor="middle">${placeTypeIcons[place.type]}</text></svg>`,
+                  }}
+                />
+              ))}
+              
+              {/* Info Window for selected place */}
+              {selectedPlace && (
+                <InfoWindow
+                  position={{ lat: selectedPlace.location.lat, lng: selectedPlace.location.lng }}
+                  onCloseClick={() => setSelectedPlace(null)}
+                >
+                  <div className="p-2 max-w-xs">
+                    <h3 className="font-bold text-sm mb-1">{selectedPlace.name}</h3>
+                    <p className="text-xs text-gray-600 mb-2">{selectedPlace.location.address}</p>
+                    <button
+                      onClick={() => {
+                        setShowCheckInDialog(true)
+                      }}
+                      className="w-full px-3 py-1.5 bg-primary text-white rounded text-xs font-medium"
+                    >
+                      Check In
+                    </button>
+                  </div>
+                </InfoWindow>
+              )}
+            </GoogleMap>
+          </div>
+        )}
+        
+        {/* Loading map message */}
+        {viewMode === 'map' && !mapLoaded && (
+          <div className="h-[calc(100vh-140px)] flex items-center justify-center">
+            <div className="text-center">
+              <MapIcon className="animate-pulse mx-auto mb-4" size={48} />
+              <p className="text-muted-foreground">Loading map...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div className="p-4 space-y-3 pb-20">
         {places.map((place) => (
           <div
             key={place.id}
@@ -246,10 +355,11 @@ export default function ParkRadarScreen() {
             )}
           </div>
         ))}
-      </div>
-      
-      {/* Check-in dialog */}
-      {showCheckInDialog && (
+          </div>
+        )}
+        
+        {/* Check-in dialog */}
+        {showCheckInDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full">
             <h2 className="text-xl font-bold mb-4">Check In</h2>
@@ -322,6 +432,7 @@ export default function ParkRadarScreen() {
           }}
         />
       )}
-    </div>
+      </div>
+    </LoadScript>
   )
 }
