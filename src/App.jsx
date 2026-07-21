@@ -115,58 +115,33 @@ function ParkRadarScreen() {
 
 function PetPassportScreen() {
   const { goBack } = useApp()
-  const [pets, setPets] = React.useState([])
+  const [testMessage, setTestMessage] = useState('Testing Pet Passport...')
   
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('paway_pets')
-      const petsData = stored ? JSON.parse(stored) : []
-      setPets(petsData)
-      console.log('📋 Loaded pets from localStorage:', petsData.length)
-    } catch (error) {
-      console.error('Error loading pets:', error)
-      setPets([])
-    }
-  }, [])
+  const handleTest = () => {
+    setTestMessage('Button clicked! State works!')
+    console.log('Pet Passport button clicked')
+  }
   
   return (
     <div style={{ padding: '20px' }}>
       <button onClick={goBack} style={{ marginBottom: '20px', padding: '10px', fontSize: '16px' }}>← Back</button>
       <h1 style={{ color: '#6366f1', marginBottom: '20px' }}>📋 Pet Passport</h1>
       
-      {pets.length === 0 ? (
-        <p style={{ color: '#666' }}>No pets found. Sample pet should appear here.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {pets.map(pet => (
-            <div key={pet.id} style={{
-              padding: '15px',
-              background: 'white',
-              border: '2px solid #e5e7eb',
-              borderRadius: '12px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}>
-              <h3 style={{ color: '#6366f1', margin: '0 0 10px 0', fontSize: '20px' }}>
-                {pet.name}
-              </h3>
-              <p style={{ margin: '5px 0', color: '#666' }}>
-                <strong>Species:</strong> {pet.species}
-              </p>
-              <p style={{ margin: '5px 0', color: '#666' }}>
-                <strong>Breed:</strong> {pet.breed}
-              </p>
-              <p style={{ margin: '5px 0', color: '#666' }}>
-                <strong>Age:</strong> {pet.age}
-              </p>
-              {pet.chipNumber && (
-                <p style={{ margin: '5px 0', color: '#666' }}>
-                  <strong>Chip:</strong> {pet.chipNumber}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <p style={{ fontSize: '18px', marginBottom: '20px' }}>{testMessage}</p>
+      
+      <button 
+        onClick={handleTest}
+        style={{
+          padding: '15px',
+          fontSize: '18px',
+          background: '#6366f1',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px'
+        }}
+      >
+        Test Button
+      </button>
     </div>
   )
 }
