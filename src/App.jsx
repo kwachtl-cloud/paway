@@ -115,11 +115,53 @@ function ParkRadarScreen() {
 
 function PetPassportScreen() {
   const { goBack } = useApp()
-  const [testMessage, setTestMessage] = useState('Testing Pet Passport...')
+  const [pets, setPets] = useState([])
+  const [loading, setLoading] = useState(true)
   
-  const handleTest = () => {
-    setTestMessage('Button clicked! State works!')
-    console.log('Pet Passport button clicked')
+  useEffect(() => {
+    console.log('📋 Pet Passport mounting...')
+    
+    // Give it a moment to settle
+    setTimeout(() => {
+      try {
+        console.log('📋 Attempting to read localStorage...')
+        const stored = localStorage.getItem('paway_pets')
+        console.log('📋 localStorage read result:', stored ? 'found' : 'empty')
+        
+        if (stored) {
+          const petsData = JSON.parse(stored)
+          console.log('📋 Parsed pets:', petsData.length)
+          setPets(petsData)
+        } else {
+          console.log('📋 No pets found, creating sample pet...')
+          const samplePet = {
+            id: 'sample_1',
+            name: 'Max',
+            species: 'dog',
+            breed: 'Golden Retriever',
+            age: '3 years'
+          }
+          localStorage.setItem('paway_pets', JSON.stringify([samplePet]))
+          setPets([samplePet])
+          console.log('📋 Sample pet created')
+        }
+      } catch (error) {
+        console.error('📋 Error in Pet Passport:', error)
+        setPets([])
+      } finally {
+        setLoading(false)
+      }
+    }, 100)
+  }, [])
+  
+  if (loading) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <button onClick={goBack} style={{ marginBottom: '20px', padding: '10px', fontSize: '16px' }}>← Back</button>
+        <h1 style={{ color: '#6366f1', marginBottom: '20px' }}>📋 Pet Passport</h1>
+        <p>Loading...</p>
+      </div>
+    )
   }
   
   return (
@@ -127,21 +169,31 @@ function PetPassportScreen() {
       <button onClick={goBack} style={{ marginBottom: '20px', padding: '10px', fontSize: '16px' }}>← Back</button>
       <h1 style={{ color: '#6366f1', marginBottom: '20px' }}>📋 Pet Passport</h1>
       
-      <p style={{ fontSize: '18px', marginBottom: '20px' }}>{testMessage}</p>
-      
-      <button 
-        onClick={handleTest}
-        style={{
-          padding: '15px',
-          fontSize: '18px',
-          background: '#6366f1',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px'
-        }}
-      >
-        Test Button
-      </button>
+      {pets.length === 0 ? (
+        <p style={{ color: '#666' }}>No pets found</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          {pets.map(pet => (
+            <div key={pet.id} style={{
+              padding: '15px',
+              background: 'white',
+              border: '2px solid #6366f1',
+              borderRadius: '12px'
+            }}>
+              <h3 style={{ color: '#6366f1', margin: '0 0 10px 0' }}>{pet.name}</h3>
+              <p style={{ margin: '5px 0', color: '#666' }}>
+                <strong>Species:</strong> {pet.species}
+              </p>
+              <p style={{ margin: '5px 0', color: '#666' }}>
+                <strong>Breed:</strong> {pet.breed}
+              </p>
+              <p style={{ margin: '5px 0', color: '#666' }}>
+                <strong>Age:</strong> {pet.age}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
