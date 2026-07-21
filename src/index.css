@@ -5,58 +5,58 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: 40 33% 96%;
-  --foreground: 155 35% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 155 35% 12%;
-  --primary: 155 45% 18%;
-  --primary-foreground: 40 33% 96%;
-  --primary-soft: 155 30% 92%;
-  --primary-glow: 155 40% 30%;
-  --secondary: 40 25% 92%;
-  --secondary-foreground: 155 35% 12%;
-  --muted: 40 20% 93%;
-  --muted-foreground: 155 10% 40%;
-  --accent: 38 70% 60%;
-  --accent-foreground: 155 35% 12%;
-  --accent-soft: 38 60% 92%;
-  --success: 152 55% 38%;
+  /* New Design System - Light Theme */
+  --background: 210 20% 98%;  /* #F8FAFC - Light background */
+  --foreground: 180 70% 8%;   /* #0C1A1A - Primary dark text */
+  --card: 0 0% 100%;          /* #FFFFFF - Pure white cards */
+  --card-foreground: 180 70% 8%;
+  --primary: 142 71% 45%;     /* #22C55E - Brand green */
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 138 50% 93%; /* #E6F4EA - Light green chips */
+  --primary-glow: 142 71% 35%;
+  --secondary: 210 17% 96%;   /* #F4F6F5 - Secondary bg */
+  --secondary-foreground: 180 70% 8%;
+  --muted: 210 17% 93%;
+  --muted-foreground: 180 10% 45%;
+  --accent: 142 71% 45%;      /* Same as primary for consistency */
+  --accent-foreground: 0 0% 100%;
+  --accent-soft: 138 50% 93%;
+  --success: 142 71% 45%;
   --warning: 38 90% 55%;
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
-  --border: 40 20% 88%;
-  --input: 40 20% 88%;
-  --ring: 155 45% 18%;
-  --radius: 0.75rem;
-  --shadow-sm: 0 1px 2px 0 hsl(155 35% 12% / .05);
-  --shadow-md: 0 6px 20px -8px hsl(155 35% 12% / .12);
-  --shadow-lg: 0 20px 50px -16px hsl(155 45% 18% / .22);
-  --shadow-glow: 0 16px 40px -12px hsl(155 45% 18% / .3);
-  --gradient-primary: linear-gradient(135deg, hsl(155 45% 18%), hsl(155 40% 26%));
-  --gradient-accent: linear-gradient(135deg, hsl(38 70% 60%), hsl(28 75% 58%));
-  --gradient-surface: linear-gradient(180deg, hsl(40 33% 96%), hsl(40 30% 93%));
-  --gradient-hero: radial-gradient(circle at 15% 0%, hsl(155 45% 18% / .1), transparent 50%), radial-gradient(circle at 85% 100%, hsl(38 70% 60% / .18), transparent 55%);
+  --border: 210 17% 90%;
+  --input: 210 17% 90%;
+  --ring: 142 71% 45%;
+  --radius: 1rem;  /* More rounded */
+  --shadow-sm: 0 1px 2px 0 rgba(12, 26, 26, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(12, 26, 26, 0.08);
+  --shadow-lg: 0 12px 32px -8px rgba(12, 26, 26, 0.12);
+  --shadow-card: 0 2px 8px 0 rgba(12, 26, 26, 0.04);
+  --gradient-primary: linear-gradient(135deg, #22C55E, #16A34A);
+  --gradient-dark: linear-gradient(135deg, #0C1A1A, #10221E);
   --transition-base: all .25s cubic-bezier(.4, 0, .2, 1);
 }
 
 .dark {
-  --background: 155 30% 8%;
-  --foreground: 40 33% 96%;
-  --card: 155 28% 11%;
-  --card-foreground: 40 33% 96%;
-  --primary: 40 33% 96%;
-  --primary-foreground: 155 35% 12%;
-  --primary-soft: 155 30% 18%;
-  --secondary: 155 22% 16%;
-  --secondary-foreground: 40 33% 96%;
-  --muted: 155 22% 14%;
-  --muted-foreground: 40 10% 65%;
-  --accent: 38 70% 60%;
-  --accent-foreground: 155 35% 12%;
-  --accent-soft: 38 30% 18%;
-  --border: 155 22% 18%;
-  --input: 155 22% 18%;
-  --ring: 40 33% 96%;
+  /* Dark theme - keeping original for now */
+  --background: 180 70% 8%;   /* #0C1A1A */
+  --foreground: 210 20% 98%;
+  --card: 180 65% 10%;        /* #10221E */
+  --card-foreground: 210 20% 98%;
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 142 50% 20%;
+  --secondary: 180 60% 12%;
+  --secondary-foreground: 210 20% 98%;
+  --muted: 180 55% 14%;
+  --muted-foreground: 210 10% 65%;
+  --accent: 142 71% 45%;
+  --accent-foreground: 0 0% 100%;
+  --accent-soft: 142 30% 18%;
+  --border: 180 55% 18%;
+  --input: 180 55% 18%;
+  --ring: 142 71% 45%;
 }
 
 @theme {
