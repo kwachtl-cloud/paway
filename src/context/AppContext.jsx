@@ -15,6 +15,40 @@ export function AppProvider({ children }) {
   const [selectedConversationId, setSelectedConversationId] = useState(null)
   const [selectedAlertId, setSelectedAlertId] = useState(null)
 
+  // Firebase Auth listener (with safe error handling)
+  useEffect(() => {
+    let unsubscribe = () => {}
+    
+    try {
+      // Lazy load Firebase auth to avoid blocking app startup
+      import('../firebase/firebase').then(({ auth }) => {
+        import('firebase/auth').then(({ onAuthStateChanged }) => {
+          unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            if (firebaseUser) {
+              console.log('🔑 Firebase user authenticated:', firebaseUser.uid)
+              setUser({
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'User',
+                email: firebaseUser.email,
+              })
+            } else {
+              console.log('🔑 No Firebase user')
+              setUser(null)
+            }
+          })
+        }).catch(err => {
+          console.warn('⚠️ Firebase auth import failed:', err)
+        })
+      }).catch(err => {
+        console.warn('⚠️ Firebase import failed:', err)
+      })
+    } catch (error) {
+      console.warn('⚠️ Firebase auth setup failed:', error)
+    }
+    
+    return () => unsubscribe()
+  }, [])
+
   const t = useCallback(
     (key) => {
       return translations[lang]?.[key] || key

@@ -16,6 +16,22 @@ setTimeout(() => {
   }
 }, 100)
 
+// Seed Firebase database in background (delayed, don't block render)
+setTimeout(() => {
+  try {
+    console.log('🌱 Starting Firebase seed...')
+    import('./firebase/seedData').then(({ seedDatabase }) => {
+      seedDatabase()
+        .then(() => console.log('✅ Firebase seed complete'))
+        .catch(err => console.warn('⚠️ Firebase seed failed:', err))
+    }).catch(err => {
+      console.warn('⚠️ Could not load seed data:', err)
+    })
+  } catch (error) {
+    console.warn('⚠️ Seed setup error:', error)
+  }
+}, 3000) // Wait 3s before seeding Firebase
+
 createRoot(document.getElementById('root')).render(
   <AppProvider>
     <App />
