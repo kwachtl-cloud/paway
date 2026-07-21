@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import { translations } from '../data/translations'
+import { initializeBackButtonHandler, removeBackButtonHandler } from '../utils/backButton'
 
 const AppContext = createContext()
 
@@ -24,6 +25,13 @@ export function AppProvider({ children }) {
   const navigate = useCallback((screen, options) => {
     console.log('Navigating to:', screen, 'with options:', options)
     setCurrentScreen(screen)
+    
+    // Update activeTab if navigating to a main tab screen
+    const mainTabs = ['home', 'park-radar', 'pet-passport', 'profile']
+    if (mainTabs.includes(screen)) {
+      setActiveTab(screen)
+    }
+    
     if (options?.providerId) setSelectedProviderId(options.providerId)
     if (options?.bookingId) setSelectedBookingId(options.bookingId)
     if (options?.petId) setSelectedPetId(options.petId)
@@ -32,6 +40,7 @@ export function AppProvider({ children }) {
   }, [])
 
   const goBack = useCallback(() => {
+    console.log('Going back to activeTab:', activeTab)
     setSelectedProviderId(null)
     setSelectedBookingId(null)
     setSelectedPetId(null)
@@ -39,6 +48,24 @@ export function AppProvider({ children }) {
     setSelectedAlertId(null)
     setCurrentScreen(activeTab)
   }, [activeTab])
+
+  // Initialize Android back button handler
+  useEffect(() => {
+    console.log('🔙 Initializing back button handler')
+    try {
+      initializeBackButtonHandler(goBack)
+    } catch (error) {
+      console.warn('Could not initialize back button:', error)
+    }
+    
+    return () => {
+      try {
+        removeBackButtonHandler()
+      } catch (error) {
+        console.warn('Could not remove back button handler:', error)
+      }
+    }
+  }, [goBack])
 
   const value = useMemo(() => ({
     activeTab,
