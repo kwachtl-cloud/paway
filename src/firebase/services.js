@@ -858,6 +858,12 @@ export async function getNearbyDogs() {
 export async function getPetPlaces(centerLat, centerLng, radiusInKm = 10) {
   const allPlaces = JSON.parse(localStorage.getItem('paway_pet_places') || '[]')
   
+  // If no location provided, return all places
+  if (centerLat === undefined || centerLng === undefined) {
+    console.log('📍 No location, returning all', allPlaces.length, 'places')
+    return allPlaces
+  }
+  
   return allPlaces
     .map(place => {
       if (!place.location?.lat || !place.location?.lng) return null

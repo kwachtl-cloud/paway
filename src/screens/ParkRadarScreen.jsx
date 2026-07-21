@@ -61,7 +61,13 @@ export default function ParkRadarScreen() {
     const loadPlaces = async () => {
       setLoading(true)
       try {
-        const allPlaces = await getPetPlaces()
+        // Pass current location if available for distance sorting
+        const allPlaces = await getPetPlaces(
+          currentLocation?.lat, 
+          currentLocation?.lng, 
+          50 // 50km radius
+        )
+        console.log('🗺️ Loaded', allPlaces.length, 'places')
         setPlaces(allPlaces)
       } catch (error) {
         console.error('Error loading places:', error)
@@ -70,7 +76,7 @@ export default function ParkRadarScreen() {
       }
     }
     loadPlaces()
-  }, [])
+  }, [currentLocation])
   
   // Load pets for check-in
   useEffect(() => {
