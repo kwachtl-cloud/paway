@@ -85,8 +85,8 @@ function App() {
     }
   }
 
-  // Don't show bottom nav on: SOS, full-screen maps, notifications
-  const showBottomNav = !['sos', 'sos-detail', 'park-radar', 'notifications', 'welcome', 'chat'].includes(currentScreen)
+  // Don't show bottom nav on: SOS, notifications, full-screen modals
+  const showBottomNav = !['sos', 'sos-detail', 'notifications', 'welcome', 'chat'].includes(currentScreen)
   
   // Show floating SOS button on main screens (not on SOS screen itself or welcome)
   const showSOSButton = !['sos', 'sos-detail', 'welcome', 'notifications'].includes(currentScreen) && user

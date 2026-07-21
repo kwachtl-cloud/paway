@@ -4,7 +4,6 @@ import {
   Dog, 
   Users,
   CheckCircle,
-  ArrowLeft,
   Clock,
   MapPin
 } from 'lucide-react'
@@ -20,7 +19,7 @@ const placeTypeIcons = {
 }
 
 export default function ParkRadarScreen() {
-  const { t, goBack, user } = useApp()
+  const { t, user } = useApp()
   
   const [currentLocation, setCurrentLocation] = useState(null)
   const [places, setPlaces] = useState([])
@@ -169,9 +168,6 @@ export default function ParkRadarScreen() {
   return (
     <div className="h-screen flex flex-col bg-background">
       <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 z-10">
-        <button onClick={goBack} className="p-2 hover:bg-secondary rounded-full">
-          <ArrowLeft size={20} />
-        </button>
         <div className="flex-1">
           <h1 className="text-lg font-bold">Park Radar</h1>
           <p className="text-xs text-muted-foreground">{places.length} places nearby</p>
