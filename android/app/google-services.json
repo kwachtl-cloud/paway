@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "647433414021",
+    "project_id": "paway-d9573",
+    "storage_bucket": "paway-d9573.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:647433414021:android:a22f3705d9b262a63450ec",
+        "android_client_info": {
+          "package_name": "com.paway.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQHvgs-1ZO_kx2CVG6I7H5k0hJnJrB5GQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

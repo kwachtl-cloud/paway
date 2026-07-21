@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import { translations } from '../data/translations'
 import { initializeBackButtonHandler, removeBackButtonHandler } from '../utils/backButton'
+import { initializePushNotifications, setupPushNotificationListeners, removePushNotificationListeners } from '../utils/pushNotifications'
+import { updateUserFCMToken, updateUserLocation } from '../firebase/services'
+import { getCurrentPosition } from '../utils/geolocation'
 
 const AppContext = createContext()
 
@@ -100,6 +103,68 @@ export function AppProvider({ children }) {
       }
     }
   }, [goBack])
+
+  // Initialize Push Notifications & FCM Token
+  useEffect(() => {
+    if (!user?.uid) {
+      return
+    }
+
+    console.log('📱 Initializing push notifications for user:', user.uid)
+
+    // Setup push notification listeners
+    setupPushNotificationListeners((notification) => {
+      console.log('Push notification received:', notification)
+      
+      // Handle notification tap - navigate to alert detail
+      if (notification.type === 'sos_alert' && notification.alertId) {
+        navigate('sos-detail', { alertId: notification.alertId })
+      }
+    })
+
+    // Initialize and get FCM token
+    initializePushNotifications()
+      .then(async (fcmToken) => {
+        if (fcmToken) {
+          console.log('✅ FCM Token obtained:', fcmToken.substring(0, 20) + '...')
+          
+          // Save token to Firestore
+          try {
+            await updateUserFCMToken(user.uid, fcmToken)
+            console.log('✅ FCM Token saved to Firestore')
+          } catch (error) {
+            console.error('❌ Failed to save FCM token:', error)
+          }
+        } else {
+          console.log('⚠️ No FCM token received (might be web platform)')
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Push notification initialization failed:', error)
+      })
+
+    // Update user location for geofenced notifications
+    getCurrentPosition()
+      .then(async (position) => {
+        const { latitude, longitude } = position.coords
+        console.log('📍 Updating user location:', latitude, longitude)
+        
+        try {
+          await updateUserLocation(user.uid, latitude, longitude)
+          console.log('✅ User location updated')
+        } catch (error) {
+          console.error('❌ Failed to update location:', error)
+        }
+      })
+      .catch((error) => {
+        console.warn('⚠️ Could not get user location:', error)
+      })
+
+    // Cleanup on unmount
+    return () => {
+      removePushNotificationListeners()
+    }
+  }, [user, navigate])
 
   const value = useMemo(() => ({
     activeTab,

@@ -59,6 +59,29 @@ export async function updateUser(uid, data) {
   return updateDoc(doc(db, 'users', uid), data)
 }
 
+/**
+ * Update user's FCM token for push notifications
+ * @param {string} uid - User ID
+ * @param {string} fcmToken - Firebase Cloud Messaging token
+ */
+export async function updateUserFCMToken(uid, fcmToken) {
+  if (!fcmToken) {
+    console.warn('No FCM token provided')
+    return Promise.resolve()
+  }
+
+  try {
+    return updateDoc(doc(db, 'users', uid), {
+      fcmToken,
+      fcmTokenUpdatedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    console.error('Error updating FCM token:', error)
+    // Don't fail silently - this is important for notifications
+    throw error
+  }
+}
+
 // === GEOLOCATION ===
 export async function updateUserLocation(uid, lat, lng) {
   const hash = geohashForLocation([lat, lng])
