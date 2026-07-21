@@ -488,27 +488,33 @@ export async function sendSOSAlert({
   }
   
   try {
-    const alertRef = await addDoc(collection(db, 'sos_alerts'), {
-      userId,
-      userName,
-      petId,
-      petName,
-      petPhoto: petPhoto || null,
-      petBreed: petBreed || null,
-      location: { 
-        lat, 
-        lng,
-        geohash: hash 
-      },
-      description: description || '',
-      contactPhone: contactPhone || '',
-      lastSeenTime: lastSeenTime || null,
-      status: 'active',
-      createdAt: serverTimestamp(),
-      notifiedUsers: [],
-      viewedBy: [],
-      reportedSightings: [],
-    })
+    console.log('📡 Attempting to send SOS alert to Firestore...')
+    
+    const alertRef = await withTimeout(
+      addDoc(collection(db, 'sos_alerts'), {
+        userId,
+        userName,
+        petId,
+        petName,
+        petPhoto: petPhoto || null,
+        petBreed: petBreed || null,
+        location: { 
+          lat, 
+          lng,
+          geohash: hash 
+        },
+        description: description || '',
+        contactPhone: contactPhone || '',
+        lastSeenTime: lastSeenTime || null,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        notifiedUsers: [],
+        viewedBy: [],
+        reportedSightings: [],
+      }),
+      10000, // 10 second timeout
+      null
+    )
 
     console.log('✅ Firebase SOS alert sent:', alertRef.id)
 
