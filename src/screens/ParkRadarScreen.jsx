@@ -172,15 +172,15 @@ export default function ParkRadarScreen() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 z-10">
+    <div className="min-h-screen bg-background pb-32">
+      <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <div className="flex-1">
           <h1 className="text-lg font-bold">Park Radar</h1>
           <p className="text-xs text-muted-foreground">{places.length} places nearby</p>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="p-4 space-y-3 pb-20">
         {places.map((place) => (
           <div
             key={place.id}
