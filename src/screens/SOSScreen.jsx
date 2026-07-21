@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { AlertTriangle, ArrowLeft, CheckCircle, MapPin, Loader2, Phone, MessageSquare } from 'lucide-react'
+import { AlertTriangle, CheckCircle, MapPin, Loader2, Phone, MessageSquare } from 'lucide-react'
 import { sendSOSAlert, updateUserLocation } from '../firebase/services'
 import { getPets } from '../firebase/services'
 import { getCurrentPosition } from '../utils/geolocation'
@@ -116,14 +116,7 @@ export default function SOSScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-sos-red text-white px-4 pt-6 pb-8 flex flex-col">
-      <button 
-        onClick={goBack} 
-        className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center active:scale-95 transition-transform self-start mb-6"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
+    <div className="min-h-screen bg-sos-red text-white px-4 pt-6 pb-32 flex flex-col">
       {/* Step 4: Success */}
       {sent ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in">

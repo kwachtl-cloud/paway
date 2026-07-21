@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { 
-  ArrowLeft, 
   Plus, 
   PawPrint, 
   Calendar,
@@ -232,12 +231,6 @@ export default function PetPassportScreen() {
     <div className="min-h-screen bg-background px-4 pt-4 pb-24 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <button 
-          onClick={goBack} 
-          className="w-10 h-10 bg-card rounded-full flex items-center justify-center active:scale-95 transition-transform shadow-sm"
-        >
-          <ArrowLeft size={20} className="text-foreground" />
-        </button>
         <h1 className="font-display text-lg font-semibold text-foreground">{t('petPassport')}</h1>
         <button
           onClick={() => {

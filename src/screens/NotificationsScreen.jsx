@@ -1,5 +1,5 @@
 import { useApp } from '../context/AppContext'
-import { ArrowLeft, Bell, Check, Clock, Calendar } from 'lucide-react'
+import { Bell, Check, Clock, Calendar } from 'lucide-react'
 
 export default function NotificationsScreen() {
   const { t, goBack, navigate } = useApp()
@@ -13,12 +13,8 @@ export default function NotificationsScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-32 animate-fade-in">
-      <div className="px-6 pt-8 flex items-center justify-between mb-8">
-        <button onClick={goBack} className="w-11 h-11 bg-card rounded-full flex items-center justify-center active:scale-95 transition-transform shadow-md">
-          <ArrowLeft size={20} className="text-foreground" />
-        </button>
+      <div className="px-6 pt-8 flex items-center justify-center mb-8">
         <h1 className="text-title text-foreground">{t('notifications')}</h1>
-        <div className="w-10" />
       </div>
 
       <div className="px-6 space-y-4">
