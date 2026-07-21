@@ -510,22 +510,13 @@ export async function sendSOSAlert({
       reportedSightings: [],
     })
 
-    // Find nearby users
-    const nearbyUsers = await getUsersInRadius(lat, lng, 5)
-    const nearbyCount = nearbyUsers.length
+    console.log('✅ Firebase SOS alert sent:', alertRef.id)
 
-    // Update alert with notified users
-    await updateDoc(alertRef, {
-      notifiedUsers: nearbyUsers.map(u => u.id),
-      notifiedCount: nearbyCount
-    })
-
-    console.log('✅ Firebase SOS alert sent:', alertRef.id, 'nearbyCount:', nearbyCount)
-
+    // Cloud Function will handle finding users and sending notifications
     return { 
       alertId: alertRef.id, 
-      nearbyCount: nearbyCount,
-      nearbyUsers 
+      nearbyCount: 0, // Will be updated by Cloud Function
+      nearbyUsers: []
     }
   } catch (error) {
     console.warn('Firebase unavailable, using localStorage for SOS alert:', error.message)
