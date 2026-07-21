@@ -26,7 +26,7 @@ const placeTypeIcons = {
 export default function ParkRadarScreen() {
   const { t, user } = useApp()
   
-  const [viewMode, setViewMode] = useState('map') // 'map' or 'list'
+  const [viewMode, setViewMode] = useState('list') // Start with list (safer), can switch to map
   const [currentLocation, setCurrentLocation] = useState(null)
   const [places, setPlaces] = useState([])
   const [selectedPlace, setSelectedPlace] = useState(null)
@@ -290,8 +290,8 @@ export default function ParkRadarScreen() {
         {/* List View */}
         {viewMode === 'list' && (
           <div className="p-4 space-y-3 pb-20">
-        {places.map((place) => (
-          <div
+            {places.map((place) => (
+              <div
             key={place.id}
             onClick={() => handlePlaceClick(place)}
             className={`bg-card border rounded-xl p-4 cursor-pointer transition-all ${
@@ -360,9 +360,9 @@ export default function ParkRadarScreen() {
         
         {/* Check-in dialog */}
         {showCheckInDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4">Check In</h2>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-card rounded-2xl p-6 max-w-sm w-full">
+              <h2 className="text-xl font-bold mb-4">Check In</h2>
             
             <div className="space-y-4">
               <div>
