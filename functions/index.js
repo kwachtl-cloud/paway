@@ -213,37 +213,4 @@ exports.sendSOSNotifications = onDocumentCreated(
   }
 );
 
-/**
- * Clean up expired SOS alerts (optional)
- * Runs daily at midnight
- */
-exports.cleanupExpiredAlerts = require('firebase-functions/v2/scheduler')
-  .onSchedule('every day 00:00', async (event) => {
-    try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const expiredAlertsQuery = db
-        .collection('sos_alerts')
-        .where('status', '==', 'resolved')
-        .where('createdAt', '<', sevenDaysAgo);
-
-      const snapshot = await expiredAlertsQuery.get();
-      
-      console.log(`🗑️ Found ${snapshot.size} expired alerts to cleanup`);
-
-      const batch = db.batch();
-      snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      await batch.commit();
-      
-      console.log(`✅ Cleaned up ${snapshot.size} expired alerts`);
-      
-      return { deleted: snapshot.size };
-    } catch (error) {
-      console.error('❌ Error in cleanupExpiredAlerts:', error);
-      throw error;
-    }
-  });
