@@ -224,6 +224,32 @@ export async function updateUserFCMToken(uid, fcmToken) {
   }
 }
 
+/**
+ * Update user profile photo URL in Auth and Firestore
+ * @param {string} uid - User ID
+ * @param {string} photoURL - Photo download URL
+ */
+export async function updateUserPhotoURL(uid, photoURL) {
+  try {
+    // Update in Firebase Auth
+    const user = auth.currentUser
+    if (user && user.uid === uid) {
+      await updateProfile(user, { photoURL })
+      console.log('✅ Auth profile photo updated')
+    }
+    
+    // Update in Firestore
+    await updateDoc(doc(db, 'users', uid), {
+      photoURL,
+      updatedAt: serverTimestamp()
+    })
+    console.log('✅ Firestore profile photo updated')
+  } catch (error) {
+    console.error('❌ Error updating profile photo:', error)
+    throw error
+  }
+}
+
 // === GEOLOCATION ===
 export async function updateUserLocation(uid, lat, lng) {
   const hash = geohashForLocation([lat, lng])
@@ -606,6 +632,18 @@ export async function uploadImage(file, path) {
 export async function uploadPetPhoto(userId, petId, file, index = 0) {
   const fileName = `${petId}_${index}_${Date.now()}.jpg`
   const path = `users/${userId}/pets/${fileName}`
+  return uploadImage(file, path)
+}
+
+/**
+ * Upload user profile photo
+ * @param {string} userId - User ID
+ * @param {File} file - Image file
+ * @returns {Promise<string>} - Download URL or base64
+ */
+export async function uploadProfilePhoto(userId, file) {
+  const fileName = `profile_${Date.now()}.jpg`
+  const path = `users/${userId}/${fileName}`
   return uploadImage(file, path)
 }
 

@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { Globe, PawPrint, Heart, ChevronRight, LogOut, User, Settings, Bell } from 'lucide-react'
-import { logoutUser } from '../firebase/services'
+import { Globe, PawPrint, Heart, ChevronRight, LogOut, User, Settings, Bell, Camera } from 'lucide-react'
+import { logoutUser, uploadProfilePhoto, updateUserPhotoURL } from '../firebase/services'
 import DarkHeader from '../components/DarkHeader'
 import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
@@ -8,6 +9,7 @@ import Card from '../components/Card'
 
 export default function ProfileScreen() {
   const { t, lang, setLang, navigate, setUser, user } = useApp()
+  const [uploading, setUploading] = useState(false)
 
   const handleLogout = async () => {
     try {
@@ -17,6 +19,30 @@ export default function ProfileScreen() {
     }
     setUser(null)
     navigate('welcome')
+  }
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !user?.uid) return
+
+    try {
+      setUploading(true)
+      console.log('📸 Uploading profile photo...')
+      
+      const photoURL = await uploadProfilePhoto(user.uid, file)
+      console.log('✅ Photo uploaded:', photoURL.substring(0, 50))
+      
+      await updateUserPhotoURL(user.uid, photoURL)
+      console.log('✅ Profile updated')
+      
+      // Update local user state
+      setUser({ ...user, photoURL })
+    } catch (error) {
+      console.error('❌ Error uploading photo:', error)
+      alert('Error uploading photo: ' + error.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const languages = [
@@ -54,9 +80,39 @@ export default function ProfileScreen() {
       {/* Dark Header with User Info */}
       <DarkHeader>
         <div className="px-4 pb-6 pt-2 flex flex-col items-center">
-          {/* Avatar */}
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center mb-4 shadow-lg">
-            <User size={40} className="text-lime-dark" />
+          {/* Avatar with Photo Upload */}
+          <div className="relative mb-4">
+            <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center">
+                  <User size={40} className="text-lime-dark" />
+                </div>
+              )}
+            </div>
+            
+            {/* Camera Button */}
+            <label className="absolute bottom-0 right-0 w-8 h-8 bg-lime-gradient rounded-full flex items-center justify-center cursor-pointer shadow-md active:scale-95 transition-transform">
+              <Camera size={16} className="text-bg-dark" />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+            </label>
+            
+            {uploading && (
+              <div className="absolute inset-0 bg-bg-dark/50 rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-lime-1 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
           
           {/* User Name */}
