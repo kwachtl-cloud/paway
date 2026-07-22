@@ -22,7 +22,8 @@ export default function HomeScreen() {
   const [selectedPet, setSelectedPet] = useState(null)
   const [pets, setPets] = useState([])
   const [showPetSelector, setShowPetSelector] = useState(false)
-  const [sosAlerts, setSosAlerts] = useState([])
+  const [myAlerts, setMyAlerts] = useState([]) // My pet's alerts
+  const [nearbyAlerts, setNearbyAlerts] = useState([]) // Other pets' alerts nearby
   const [loadingAlerts, setLoadingAlerts] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
 
@@ -50,8 +51,14 @@ export default function HomeScreen() {
         // Load nearby SOS alerts
         try {
           setLoadingAlerts(true)
-          const alerts = await getSOSAlertsNearby(loc.lat, loc.lng, 10) // 10km radius
-          setSosAlerts(alerts.slice(0, 3)) // Show max 3 on home
+          const allAlerts = await getSOSAlertsNearby(loc.lat, loc.lng, 10) // 10km radius
+          
+          // Split into my alerts and nearby alerts
+          const mine = allAlerts.filter(alert => alert.userId === user.uid)
+          const others = allAlerts.filter(alert => alert.userId !== user.uid)
+          
+          setMyAlerts(mine)
+          setNearbyAlerts(others.slice(0, 3)) // Show max 3 nearby alerts on home
         } catch (error) {
           console.error('Error loading SOS alerts:', error)
         } finally {
@@ -153,7 +160,7 @@ export default function HomeScreen() {
           >
             <Bell size={24} className="text-foreground" />
             {/* Notification badge */}
-            {sosAlerts.length > 0 && (
+            {(myAlerts.length > 0 || nearbyAlerts.length > 0) && (
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
             )}
           </button>
@@ -261,13 +268,45 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Active SOS Alerts */}
-      {sosAlerts.length > 0 && (
-        <div className="px-4 py-6">
+      {/* My SOS Alerts (My Lost Pets) */}
+      {myAlerts.length > 0 && (
+        <div className="px-4 py-6 bg-red-50/30">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <AlertTriangle size={20} className="text-red-600" />
-              {t('activeSOSAlerts') || 'Active Alerts'}
+              {t('mySOSAlerts') || 'My SOS Alerts'}
+            </h2>
+            <button 
+              onClick={() => navigate('sos')}
+              className="text-sm font-medium text-primary hover:text-primary/80"
+            >
+              {t('manage') || 'Manage'}
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {myAlerts.map(alert => (
+              <SOSAlertCard
+                key={alert.id}
+                alert={alert}
+                onClick={() => navigate('sos-detail', { alertId: alert.id })}
+              />
+            ))}
+          </div>
+          
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            {t('yourActiveAlerts') || 'Your active missing pet alerts'}
+          </p>
+        </div>
+      )}
+
+      {/* Nearby SOS Alerts (Other People's Lost Pets) */}
+      {nearbyAlerts.length > 0 && (
+        <div className="px-4 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle size={20} className="text-orange-600" />
+              {t('nearbySOSAlerts') || 'Nearby SOS Alerts'}
             </h2>
             <button 
               onClick={() => navigate('sos')}
@@ -278,7 +317,7 @@ export default function HomeScreen() {
           </div>
           
           <div className="space-y-3">
-            {sosAlerts.map(alert => (
+            {nearbyAlerts.map(alert => (
               <SOSAlertCard
                 key={alert.id}
                 alert={alert}
@@ -288,7 +327,7 @@ export default function HomeScreen() {
           </div>
           
           <p className="text-xs text-muted-foreground text-center mt-3">
-            {t('showingAlertsWithin') || 'Showing alerts within'} 10km
+            {t('showingAlertsWithin') || 'Showing alerts within'} 10km • {t('helpFindThem') || 'Help find them!'}
           </p>
         </div>
       )}
