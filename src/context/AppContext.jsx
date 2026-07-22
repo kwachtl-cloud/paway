@@ -34,9 +34,18 @@ export function AppProvider({ children }) {
                 name: firebaseUser.displayName || 'User',
                 email: firebaseUser.email,
               })
+              // If on welcome screen, navigate to home
+              if (currentScreen === 'welcome') {
+                console.log('✅ User logged in, navigating to home')
+                setCurrentScreen('home')
+                setActiveTab('home')
+              }
             } else {
-              console.log('🔑 No Firebase user')
+              console.log('🔑 No Firebase user, redirecting to welcome')
               setUser(null)
+              // Navigate to welcome screen on logout
+              setCurrentScreen('welcome')
+              setActiveTab('home')
             }
           })
         }).catch(err => {
@@ -50,7 +59,7 @@ export function AppProvider({ children }) {
     }
     
     return () => unsubscribe()
-  }, [])
+  }, [currentScreen])
 
   const t = useCallback(
     (key) => {

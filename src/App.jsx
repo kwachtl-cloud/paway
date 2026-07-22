@@ -29,9 +29,27 @@ function App() {
 
   console.log('App render, currentScreen:', currentScreen, 'user:', !!user)
 
-  const showWelcome = currentScreen === 'welcome' || (!user && currentScreen === 'home')
+  // Public routes (no auth required)
+  const publicRoutes = ['welcome']
+  
+  // Protected routes (auth required)
+  const isProtectedRoute = !publicRoutes.includes(currentScreen)
+  
+  // If user tries to access protected route without being logged in, show welcome
+  if (isProtectedRoute && !user) {
+    console.log('⚠️ Auth required for', currentScreen, '- redirecting to welcome')
+    return <WelcomeScreen />
+  }
+  
+  // If user is logged in but on welcome screen, redirect to home
+  if (user && currentScreen === 'welcome') {
+    console.log('✅ User logged in, redirecting from welcome to home')
+    navigate('home')
+    return null
+  }
 
-  if (showWelcome) {
+  // Show welcome screen for public routes
+  if (currentScreen === 'welcome') {
     return <WelcomeScreen />
   }
 
