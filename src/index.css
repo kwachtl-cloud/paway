@@ -1,148 +1,156 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* New Design System - Light Theme */
-  --background: 210 20% 98%;  /* #F8FAFC - Light background */
-  --foreground: 180 70% 8%;   /* #0C1A1A - Primary dark text */
-  --card: 0 0% 100%;          /* #FFFFFF - Pure white cards */
-  --card-foreground: 180 70% 8%;
-  --primary: 142 71% 45%;     /* #22C55E - Brand green */
-  --primary-foreground: 0 0% 100%;
-  --primary-soft: 138 50% 93%; /* #E6F4EA - Light green chips */
-  --primary-glow: 142 71% 35%;
-  --secondary: 210 17% 96%;   /* #F4F6F5 - Secondary bg */
-  --secondary-foreground: 180 70% 8%;
-  --muted: 210 17% 93%;
-  --muted-foreground: 180 10% 45%;
-  --accent: 142 71% 45%;      /* Same as primary for consistency */
-  --accent-foreground: 0 0% 100%;
-  --accent-soft: 138 50% 93%;
-  --success: 142 71% 45%;
-  --warning: 38 90% 55%;
-  --destructive: 0 70% 50%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 210 17% 90%;
-  --input: 210 17% 90%;
-  --ring: 142 71% 45%;
-  --radius: 1rem;  /* More rounded */
-  --shadow-sm: 0 1px 2px 0 rgba(12, 26, 26, 0.05);
-  --shadow-md: 0 4px 12px -2px rgba(12, 26, 26, 0.08);
-  --shadow-lg: 0 12px 32px -8px rgba(12, 26, 26, 0.12);
-  --shadow-card: 0 2px 8px 0 rgba(12, 26, 26, 0.04);
-  --gradient-primary: linear-gradient(135deg, #22C55E, #16A34A);
-  --gradient-dark: linear-gradient(135deg, #0C1A1A, #10221E);
+  /* Paway Design System - Forest Dark + White Card */
+  
+  /* Backgrounds */
+  --bg-dark: #0D1712;      /* Main dark bg, status bar, headers */
+  --bg-darker: #0A120D;    /* Darkest parts, bottom nav */
+  
+  /* Cards & Content */
+  --card: #FFFFFF;         /* White content card */
+  --card-2: #F4F7F3;       /* Light gray fields/pills inside card */
+  --border: #E7ECE6;       /* Thin borders on white background */
+  
+  /* Text */
+  --text-dark: #15221A;    /* Main text on white */
+  --text-gray: #75837B;    /* Helper text / descriptions */
+  --text-faint: #9AA69E;   /* Timestamps, placeholders */
+  
+  /* Brand Accent - Lime Gradient (CTA only!) */
+  --lime-1: #B7E86B;
+  --lime-2: #5FAE3D;
+  --lime-dark: #173404;    /* Dark text on lime gradient */
+  
+  /* Functional Accents (category coding) */
+  --blue-1: #7C8CF0;       /* Meetings/meetups, groups */
+  --blue-2: #9B6CE0;
+  --coral: #FF7A6B;        /* Alerts, urgent reminders */
+  --amber: #F2A93B;        /* Photos/avatars, attention */
+  --teal: #3FB8A8;         /* Health, positive data */
+  
+  /* Legacy compatibility */
+  --background: var(--bg-dark);
+  --foreground: var(--card);
+  --card-foreground: var(--text-dark);
+  --primary: var(--lime-2);
+  --primary-foreground: var(--lime-dark);
+  --secondary: var(--card-2);
+  --secondary-foreground: var(--text-dark);
+  --muted: var(--card-2);
+  --muted-foreground: var(--text-gray);
+  --destructive: var(--coral);
+  --destructive-foreground: var(--card);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(13, 23, 18, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(13, 23, 18, 0.08);
+  --shadow-lg: 0 12px 32px -8px rgba(13, 23, 18, 0.12);
+  --shadow-card: 0 2px 8px 0 rgba(13, 23, 18, 0.04);
+  
+  /* Gradients */
+  --gradient-lime: linear-gradient(135deg, var(--lime-1), var(--lime-2));
+  --gradient-dark: linear-gradient(135deg, var(--bg-dark), var(--bg-darker));
+  
   --transition-base: all .25s cubic-bezier(.4, 0, .2, 1);
 }
 
-.dark {
-  /* Dark theme - keeping original for now */
-  --background: 180 70% 8%;   /* #0C1A1A */
-  --foreground: 210 20% 98%;
-  --card: 180 65% 10%;        /* #10221E */
-  --card-foreground: 210 20% 98%;
-  --primary: 142 71% 45%;
-  --primary-foreground: 0 0% 100%;
-  --primary-soft: 142 50% 20%;
-  --secondary: 180 60% 12%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 180 55% 14%;
-  --muted-foreground: 210 10% 65%;
-  --accent: 142 71% 45%;
-  --accent-foreground: 0 0% 100%;
-  --accent-soft: 142 30% 18%;
-  --border: 180 55% 18%;
-  --input: 180 55% 18%;
-  --ring: 142 71% 45%;
-}
-
 @theme {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-primary-soft: hsl(var(--primary-soft));
-  --color-primary-glow: hsl(var(--primary-glow));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-accent-soft: hsl(var(--accent-soft));
-  --color-success: hsl(var(--success));
-  --color-warning: hsl(var(--warning));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-brand-green: hsl(var(--primary));
-  --color-brand-green-light: hsl(155 35% 38%);
-  --color-brand-green-dark: hsl(155 50% 14%);
-  --color-bg-primary: hsl(var(--background));
-  --color-bg-secondary: hsl(var(--secondary));
-  --color-text-dark: hsl(var(--foreground));
-  --color-text-body: hsl(var(--card-foreground));
-  --color-text-light: hsl(var(--muted-foreground));
-  --color-border-subtle: hsl(var(--border));
-  --color-groomer-accent: hsl(var(--accent));
-  --color-vet-accent: #728B96;
-  --color-sos-red: #E74C3C;
-  --color-success-green: #27AE60;
-  --color-warning-amber: #F39C12;
-  --color-cream: hsl(var(--background));
-  --color-beige: hsl(var(--secondary));
+  /* Colors - Design System */
+  --color-bg-dark: var(--bg-dark);
+  --color-bg-darker: var(--bg-darker);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-border: var(--border);
+  --color-text-dark: var(--text-dark);
+  --color-text-gray: var(--text-gray);
+  --color-text-faint: var(--text-faint);
+  --color-lime-1: var(--lime-1);
+  --color-lime-2: var(--lime-2);
+  --color-lime-dark: var(--lime-dark);
+  --color-blue-1: var(--blue-1);
+  --color-blue-2: var(--blue-2);
+  --color-coral: var(--coral);
+  --color-amber: var(--amber);
+  --color-teal: var(--teal);
+  
+  /* Legacy */
+  --color-background: var(--bg-dark);
+  --color-foreground: var(--card);
+  --color-card-foreground: var(--text-dark);
+  --color-primary: var(--lime-2);
+  --color-primary-foreground: var(--lime-dark);
+  --color-secondary: var(--card-2);
+  --color-secondary-foreground: var(--text-dark);
+  --color-muted: var(--card-2);
+  --color-muted-foreground: var(--text-gray);
+  --color-accent: var(--lime-1);
+  --color-destructive: var(--coral);
 
-  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Typography - Poppins (headers/CTA) + Inter (body) */
+  --font-poppins: 'Poppins', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+  --font-display: var(--font-poppins);
+  --font-sans: var(--font-inter);
   
-  --font-size-display: 2.25rem;
-  --font-size-heading: 1.5rem;
-  --font-size-title: 1rem;
-  --font-size-body: 0.875rem;
-  --font-size-caption: 0.75rem;
-  --font-size-eyebrow: 0.75rem;
+  /* Font Sizes (mobile) */
+  --font-size-display: 1.5rem;      /* 24px - Large screen titles */
+  --font-size-heading: 1rem;        /* 16px - Screen title */
+  --font-size-title: 0.9375rem;     /* 15px - Card title (h-title) */
+  --font-size-body: 0.8125rem;      /* 13px - Body text */
+  --font-size-caption: 0.6875rem;   /* 11px - Caption/meta */
+  --font-size-eyebrow: 0.625rem;    /* 10px - Pills/tags */
   
+  /* Font Weights */
   --font-weight-display: 700;
   --font-weight-heading: 700;
-  --font-weight-title: 700;
-  --font-weight-body: 500;
-  --font-weight-caption: 400;
-  --font-weight-eyebrow: 700;
+  --font-weight-title: 600;
+  --font-weight-body: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   
+  /* Line Heights */
   --line-height-display: 1.2;
   --line-height-heading: 1.3;
   --line-height-title: 1.5;
   --line-height-body: 1.5;
   --line-height-caption: 1.4;
   
-  --letter-spacing-eyebrow: 0.2em;
-  
+  /* Spacing */
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
   --spacing-4: 1rem;
+  --spacing-5: 1.25rem;      /* 20px - Card padding */
   --spacing-6: 1.5rem;
   --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
   --spacing-12: 3rem;
   
+  /* Border Radius - Design System */
+  --radius-card: 26px;       /* Main card top corners */
+  --radius-card-top: 20px;   /* Alternative card top */
+  --radius-item: 14px;       /* List items, posts */
+  --radius-pill: 12px;       /* Tags, status pills */
+  --radius-photo: 12px;      /* Post photos/places (square) */
+  --radius-avatar: 50%;      /* User avatars (circle) */
   --radius-sm: 0.75rem;
-  --radius-md: 1.25rem;
-  --radius-lg: 1.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
 
-  --shadow-sm: 0 1px 2px 0 hsl(155 35% 12% / .05);
-  --shadow-md: 0 6px 20px -8px hsl(155 35% 12% / .12);
-  --shadow-lg: 0 20px 50px -16px hsl(155 45% 18% / .22);
-  --shadow-glow: 0 16px 40px -12px hsl(155 45% 18% / .3);
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-card: var(--shadow-card);
   --shadow-soft: var(--shadow-md);
   --shadow-elevated: var(--shadow-lg);
 
+  /* Animations */
   --animate-fade-in: fadeIn 0.4s ease-out;
   --animate-slide-up: slideUp 0.4s ease-out;
   --animate-pulse-slow: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -169,12 +177,12 @@
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-inter);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: var(--transition-base);
@@ -184,24 +192,24 @@ body {
   max-width: 400px;
   margin: 0 auto;
   min-height: 100svh;
-  background-color: hsl(var(--background));
+  background-color: var(--bg-dark);
   position: relative;
   overflow-x: hidden;
 }
 
 /* Leaflet fixes */
 .leaflet-container {
-  font-family: var(--font-sans);
+  font-family: var(--font-inter);
 }
 
 .leaflet-control-zoom {
   display: none;
 }
 
-/* Typography System */
+/* Typography System - Poppins for headers, Inter for body */
 .text-display,
 h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-poppins);
   font-size: var(--font-size-display);
   font-weight: var(--font-weight-display);
   line-height: var(--line-height-display);
@@ -210,7 +218,7 @@ h1 {
 
 .text-heading,
 h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-poppins);
   font-size: var(--font-size-heading);
   font-weight: var(--font-weight-heading);
   line-height: var(--line-height-heading);
@@ -219,7 +227,7 @@ h2 {
 
 .text-title,
 h3 {
-  font-family: var(--font-sans);
+  font-family: var(--font-poppins);
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
@@ -227,39 +235,39 @@ h3 {
 
 .text-body,
 p {
-  font-family: var(--font-sans);
+  font-family: var(--font-inter);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
 }
 
 .text-caption {
-  font-family: var(--font-sans);
+  font-family: var(--font-inter);
   font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-caption);
+  font-weight: var(--font-weight-body);
   line-height: var(--line-height-caption);
 }
 
 .text-eyebrow {
-  font-family: var(--font-sans);
+  font-family: var(--font-inter);
   font-size: var(--font-size-eyebrow);
-  font-weight: var(--font-weight-eyebrow);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
-  letter-spacing: var(--letter-spacing-eyebrow);
+  letter-spacing: 0.1em;
 }
 
-/* Button System */
+/* Button System - Lime gradient for CTA */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  font-family: var(--font-sans);
+  font-family: var(--font-poppins);
   font-size: var(--font-size-body);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   line-height: 1;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
   transition: var(--transition-base);
@@ -268,34 +276,38 @@ p {
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: hsl(var(--primary-foreground));
+  background: var(--gradient-lime);
+  color: var(--lime-dark);
   box-shadow: var(--shadow-md);
 }
 
 .btn-primary:hover {
-  box-shadow: var(--shadow-glow);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
 
+.btn-primary:active {
+  transform: scale(0.95);
+}
+
 .btn-secondary {
-  background-color: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
-  border: 1px solid hsl(var(--border));
+  background-color: var(--card-2);
+  color: var(--text-dark);
+  border: 1px solid var(--border);
 }
 
 .btn-secondary:hover {
-  background-color: hsl(var(--muted));
+  background-color: var(--border);
 }
 
 .btn-outline {
   background-color: transparent;
-  color: hsl(var(--primary));
-  border: 2px solid hsl(var(--primary));
+  color: var(--lime-2);
+  border: 2px solid var(--lime-2);
 }
 
 .btn-outline:hover {
-  background-color: hsl(var(--primary-soft));
+  background-color: rgba(183, 232, 107, 0.12);
 }
 
 .btn-destructive {
@@ -412,3 +424,90 @@ p {
 .animate-slide-up {
   animation: var(--animate-slide-up);
 }
+
+/* Design System Components */
+
+/* Dark Header Component */
+.dark-header {
+  background-color: var(--bg-dark);
+  color: var(--card);
+}
+
+/* White Card Component */
+.card-white {
+  background-color: var(--card);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 10;
+  margin-top: -1.5rem;
+}
+
+/* Status Pill Component */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-inter);
+  font-size: var(--font-size-eyebrow);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pill-lime {
+  background-color: rgba(183, 232, 107, 0.12);
+  color: var(--lime-2);
+}
+
+.pill-coral {
+  background-color: rgba(255, 122, 107, 0.12);
+  color: var(--coral);
+}
+
+.pill-teal {
+  background-color: rgba(63, 184, 168, 0.12);
+  color: var(--teal);
+}
+
+.pill-amber {
+  background-color: rgba(243, 169, 59, 0.12);
+  color: var(--amber);
+}
+
+.pill-blue {
+  background-color: rgba(124, 140, 240, 0.12);
+  color: var(--blue-1);
+}
+
+/* Card Item Component */
+.card-item {
+  background-color: var(--card-2);
+  padding: 1rem;
+  border-radius: var(--radius-item);
+  border: 1px solid var(--border);
+}
+
+/* FAB Button - Lime gradient, circular, elevated */
+.fab {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--gradient-lime);
+  color: var(--lime-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px -4px rgba(183, 232, 107, 0.4);
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px -6px rgba(183, 232, 107, 0.5);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
