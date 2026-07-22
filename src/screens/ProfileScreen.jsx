@@ -1,6 +1,10 @@
 import { useApp } from '../context/AppContext'
-import { Globe, Settings, PawPrint, Coins, ChevronRight, Shield, LogOut, Heart } from 'lucide-react'
+import { Globe, PawPrint, Heart, ChevronRight, LogOut, User, Settings, Bell } from 'lucide-react'
 import { logoutUser } from '../firebase/services'
+import DarkHeader from '../components/DarkHeader'
+import WhiteCard from '../components/WhiteCard'
+import Button from '../components/Button'
+import Card from '../components/Card'
 
 export default function ProfileScreen() {
   const { t, lang, setLang, navigate, setUser, user } = useApp()
@@ -8,115 +12,133 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       await logoutUser()
-    } catch (e) {}
+    } catch (e) {
+      console.error('Logout error:', e)
+    }
     setUser(null)
     navigate('welcome')
   }
 
   const languages = [
-    { code: 'pl', label: 'Polski' },
-    { code: 'en', label: 'English' },
-    { code: 'de', label: 'Deutsch' },
+    { code: 'pl', label: 'PL' },
+    { code: 'en', label: 'EN' },
+    { code: 'de', label: 'DE' },
+  ]
+
+  const menuItems = [
+    {
+      id: 'pets',
+      icon: PawPrint,
+      label: 'Pet Passport',
+      color: 'lime-2',
+      screen: 'pet-passport'
+    },
+    {
+      id: 'settings',
+      icon: Settings,
+      label: 'Settings',
+      color: 'text-gray',
+      screen: 'profile'
+    },
+    {
+      id: 'notifications',
+      icon: Bell,
+      label: 'Notifications',
+      color: 'amber',
+      screen: 'notifications'
+    },
   ]
 
   return (
-    <div className="px-6 pt-8 pb-32 bg-background min-h-screen animate-fade-in">
-      {/* User Card - Large Avatar */}
-      <div className="card p-6 mb-6">
-        <div className="flex flex-col items-center text-center">
-          <div className="relative mb-4">
-            <div className="w-24 h-24 bg-primary-soft rounded-full flex items-center justify-center">
-              <span className="text-5xl">👤</span>
-            </div>
-            <div className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center border-2 border-card">
-              <Shield size={14} className="text-primary-foreground" />
-            </div>
+    <div className="min-h-screen bg-bg-dark pb-24">
+      {/* Dark Header with User Info */}
+      <DarkHeader>
+        <div className="px-4 pb-6 pt-2 flex flex-col items-center">
+          {/* Avatar */}
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center mb-4 shadow-lg">
+            <User size={40} className="text-lime-dark" />
           </div>
-          <h2 className="text-heading text-foreground mb-1">{user?.name || 'Jan Kowalski'}</h2>
-          <p className="text-body text-muted-foreground mb-2">{user?.email || 'jan.kowalski@email.com'}</p>
-          <span className="badge badge-live">{t('verified')}</span>
+          
+          {/* User Name */}
+          <h1 className="font-poppins font-bold text-2xl text-card mb-1">
+            {user?.name || 'User'}
+          </h1>
+          
+          {/* Email */}
+          <p className="font-inter text-text-gray text-sm mb-4">
+            {user?.email || 'user@example.com'}
+          </p>
         </div>
-      </div>
+      </DarkHeader>
 
-      {/* Paway Coins */}
-      <div className="bg-[image:var(--gradient-accent)] rounded-[var(--radius-md)] p-5 mb-6 text-accent-foreground flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2">
-          <Coins size={22} />
-          <span className="text-title">{t('coins')}</span>
+      {/* White Card Content */}
+      <WhiteCard>
+        {/* Language Switcher */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe size={20} className="text-text-dark" />
+            <h3 className="font-poppins font-semibold text-text-dark text-base">
+              {t('language')}
+            </h3>
+          </div>
+          <div className="flex gap-2">
+            {languages.map(({ code, label }) => (
+              <button
+                key={code}
+                onClick={() => setLang(code)}
+                className={`flex-1 py-3 rounded-xl font-inter text-sm font-semibold transition-all ${
+                  lang === code
+                    ? 'bg-gradient-to-r from-lime-1 to-lime-2 text-lime-dark'
+                    : 'bg-card-2 text-text-gray'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <span className="text-heading">1,250</span>
-      </div>
 
-      {/* Pet Passport */}
-      <button
-        onClick={() => navigate('pet-passport')}
-        className="card w-full p-5 mb-4 flex items-center justify-between active:scale-95 transition-transform"
-      >
-        <div className="flex items-center gap-3">
-          <PawPrint size={20} className="text-primary" />
-          <span className="text-title text-foreground">{t('petPassport')}</span>
+        {/* Menu Items */}
+        <div className="mb-8">
+          <h3 className="font-poppins font-semibold text-text-dark text-base mb-4">
+            Menu
+          </h3>
+          <div className="space-y-2">
+            {menuItems.map(item => {
+              const Icon = item.icon
+              return (
+                <Card
+                  key={item.id}
+                  onClick={() => navigate(item.screen)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Icon 
+                        size={20} 
+                        style={{ color: `var(--${item.color})` }}
+                      />
+                      <span className="font-inter text-sm font-medium text-text-dark">
+                        {item.label}
+                      </span>
+                    </div>
+                    <ChevronRight size={18} className="text-text-gray" />
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
         </div>
-        <ChevronRight size={18} className="text-muted-foreground" />
-      </button>
 
-      {/* Saved Providers */}
-      <button
-        onClick={() => navigate('saved')}
-        className="card w-full p-5 mb-4 flex items-center justify-between active:scale-95 transition-transform"
-      >
-        <div className="flex items-center gap-3">
-          <Heart size={20} className="text-destructive" />
-          <span className="text-title text-foreground">{t('saved')}</span>
-        </div>
-        <ChevronRight size={18} className="text-muted-foreground" />
-      </button>
-
-      {/* Language Switcher */}
-      <div className="card p-5 mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Globe size={18} className="text-primary" />
-          <span className="text-title text-foreground">{t('language')}</span>
-        </div>
-        <div className="flex gap-2">
-          {languages.map(({ code, label }) => (
-            <button
-              key={code}
-              onClick={() => setLang(code)}
-              className={`flex-1 py-2 rounded-xl text-caption font-semibold transition-all ${
-                lang === code
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Settings */}
-      <button
-        onClick={() => {}}
-        className="card w-full p-5 flex items-center justify-between active:scale-95 transition-transform mb-4"
-      >
-        <div className="flex items-center gap-3">
-          <Settings size={20} className="text-muted-foreground" />
-          <span className="text-title text-foreground">{t('settings')}</span>
-        </div>
-        <ChevronRight size={18} className="text-muted-foreground" />
-      </button>
-
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="card w-full p-5 border-destructive/20 flex items-center justify-between active:scale-95 transition-transform"
-      >
-        <div className="flex items-center gap-3">
-          <LogOut size={20} className="text-destructive" />
-          <span className="text-title text-destructive">{t('logOut')}</span>
-        </div>
-        <ChevronRight size={18} className="text-destructive/50" />
-      </button>
+        {/* Logout Button */}
+        <Button
+          variant="outline"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2"
+        >
+          <LogOut size={18} />
+          <span>Log Out</span>
+        </Button>
+      </WhiteCard>
     </div>
   )
 }
