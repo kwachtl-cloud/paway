@@ -963,18 +963,6 @@ export function subscribeToMessages(conversationId, callback) {
   })
 }
 
-export async function getUserProfile(uid) {
-  if (!uid) return null
-  const snap = await getDoc(doc(db, 'users', uid))
-  if (snap.exists()) return snap.data()
-  const svcSnap = await getDoc(doc(db, 'services', uid))
-  if (svcSnap.exists()) {
-    const data = svcSnap.data()
-    return { name: data.name, image: data.image, role: data.type || 'provider' }
-  }
-  return null
-}
-
 // === NEARBY DOGS ===
 export async function getNearbyDogs() {
   const q = query(collection(db, 'nearby_dogs'))
