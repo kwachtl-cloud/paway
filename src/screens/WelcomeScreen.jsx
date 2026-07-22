@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { PawPrint, Mail, Lock, Eye, EyeOff, Globe } from 'lucide-react'
+import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { loginUser, registerUser } from '../firebase/services'
+import DarkHeader from '../components/DarkHeader'
+import WhiteCard from '../components/WhiteCard'
+import Button from '../components/Button'
 
 export default function WelcomeScreen() {
   const { navigate, setUser, t, lang, setLang } = useApp()
@@ -22,7 +25,7 @@ export default function WelcomeScreen() {
       if (mode === 'login') {
         const cred = await loginUser(email, password)
         setUser({ uid: cred.user.uid, name: cred.user.displayName || 'User', email: cred.user.email })
-      } else {
+      } else if (mode === 'register') {
         const cred = await registerUser(email, password, name)
         setUser({ uid: cred.uid, name, email })
       }
@@ -51,129 +54,277 @@ export default function WelcomeScreen() {
     navigate('home')
   }
 
-  if (mode === 'login' || mode === 'register') {
+  // Password strength indicator
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return null
+    if (pwd.length < 6) return { label: 'Weak', color: 'coral' }
+    if (pwd.length < 10) return { label: 'Medium', color: 'amber' }
+    return { label: 'Strong', color: 'teal' }
+  }
+
+  const passwordStrength = mode === 'register' ? getPasswordStrength(password) : null
+
+  // Login Screen
+  if (mode === 'login') {
     return (
-      <div className="min-h-screen bg-background flex flex-col px-6 pt-12 animate-fade-in">
-        <div className="flex items-center justify-between mb-8">
-          <button onClick={() => { setMode('welcome'); setError('') }} className="w-10 h-10 rounded-full flex items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <div className="flex items-center gap-1 bg-card rounded-xl p-1 shadow-sm border border-border">
-            {languages.map(({ code, label }) => (
-              <button
-                key={code}
-                onClick={() => setLang(code)}
-                className={`px-3 py-1.5 rounded-lg text-caption font-medium transition-all ${
-                  lang === code ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <h1 className="text-display text-foreground mb-2">
-            {mode === 'login' ? t('welcomeBack') : t('createAccount')}
-          </h1>
-          <p className="text-body text-muted-foreground">
-            {mode === 'login' ? t('loginToContinue') : t('joinCommunity')}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex-1">
-          {mode === 'register' && (
-            <div className="mb-3">
-              <input
-                type="text"
-                placeholder={t('yourName')}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input"
-                required
-              />
+      <div className="min-h-screen bg-background">
+        <DarkHeader 
+          title="Log In"
+          onBack={() => { setMode('welcome'); setError('') }}
+          rightAction={
+            <div className="flex items-center gap-1 bg-bg-darker rounded-lg p-1">
+              {languages.map(({ code, label }) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                    lang === code ? 'bg-lime-2 text-lime-dark' : 'text-text-gray'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          )}
-          <div className="mb-3">
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-20">
-                <Mail size={18} className="text-muted-foreground" />
+          }
+        />
+        
+        <WhiteCard>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                  required
+                />
               </div>
-              <input
-                type="email"
-                placeholder={t('emailAddress')}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input pl-14 relative z-10"
-                required
-              />
             </div>
-          </div>
-          <div className="mb-4">
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-20">
-                <Lock size={18} className="text-muted-foreground" />
+
+            <div>
+              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-gray"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder={t('password')}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input pl-14 pr-12 relative z-10"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground z-20 cursor-pointer"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
             </div>
-          </div>
 
-          {error && (
-            <div className="bg-destructive/10 text-destructive text-caption px-4 py-2.5 rounded-xl mb-4">{error}</div>
-          )}
+            {error && (
+              <div className="bg-coral/10 text-coral px-4 py-3 rounded-xl text-sm font-inter">
+                {error}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary btn-lg w-full mb-4"
-          >
-            {loading ? t('loading') : mode === 'login' ? t('login') : t('createAccount')}
-          </button>
-        </form>
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={loading}
+              className="w-full mt-6"
+            >
+              {loading ? 'Logging in...' : 'Log In'}
+            </Button>
 
-        <button
-          onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}
-          className="text-center text-body text-muted-foreground pb-6"
-        >
-          {mode === 'login' ? (
-            <>{t('dontHaveAccount')} <span className="text-primary font-semibold">{t('signUp')}</span></>
-          ) : (
-            <>{t('alreadyHaveAccount')} <span className="text-primary font-semibold">{t('login')}</span></>
-          )}
-        </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError('') }}
+              className="w-full text-center text-sm text-text-gray font-inter mt-4"
+            >
+              Don't have an account? <span className="text-lime-2 font-semibold">Sign Up</span>
+            </button>
+          </form>
+        </WhiteCard>
       </div>
     )
   }
 
+  // Register Screen
+  if (mode === 'register') {
+    return (
+      <div className="min-h-screen bg-background">
+        <DarkHeader 
+          title="Create Account"
+          onBack={() => { setMode('welcome'); setError('') }}
+          rightAction={
+            <div className="flex items-center gap-1 bg-bg-darker rounded-lg p-1">
+              {languages.map(({ code, label }) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                    lang === code ? 'bg-lime-2 text-lime-dark' : 'text-text-gray'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          }
+        />
+        
+        <WhiteCard>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
+                Your Name
+              </label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="At least 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-gray"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {passwordStrength && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 h-1 bg-card-2 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all"
+                      style={{ 
+                        width: passwordStrength.label === 'Weak' ? '33%' : passwordStrength.label === 'Medium' ? '66%' : '100%',
+                        backgroundColor: `var(--${passwordStrength.color})`
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-inter" style={{ color: `var(--${passwordStrength.color})` }}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="bg-coral/10 text-coral px-4 py-3 rounded-xl text-sm font-inter">
+                {error}
+              </div>
+            )}
+
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={loading}
+              className="w-full mt-6"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError('') }}
+              className="w-full text-center text-sm text-text-gray font-inter mt-4"
+            >
+              Already have an account? <span className="text-lime-2 font-semibold">Log In</span>
+            </button>
+          </form>
+        </WhiteCard>
+      </div>
+    )
+  }
+
+  // Welcome Screen (Initial View)
+  const features = [
+    {
+      icon: Heart,
+      color: 'coral',
+      title: 'SOS Alerts',
+      description: 'Instant help when your pet goes missing'
+    },
+    {
+      icon: MessageCircle,
+      color: 'blue-1',
+      title: 'Community',
+      description: 'Connect with other pet owners nearby'
+    },
+    {
+      icon: MapPin,
+      color: 'teal',
+      title: 'Live Tracking',
+      description: 'Know where your pet is at all times'
+    },
+    {
+      icon: Bell,
+      color: 'amber',
+      title: 'Smart Reminders',
+      description: 'Never miss vet appointments or medication'
+    }
+  ]
+
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-8 animate-fade-in">
-      {/* Language Switcher */}
-      <div className="absolute top-6 right-4">
-        <div className="flex items-center gap-1 bg-card rounded-xl p-1 shadow-sm border border-border">
+    <div className="min-h-screen bg-bg-dark flex flex-col">
+      {/* Language Switcher - Top Right */}
+      <div className="absolute top-6 right-4 z-20">
+        <div className="flex items-center gap-1 bg-bg-darker rounded-lg p-1">
           {languages.map(({ code, label }) => (
             <button
               key={code}
               onClick={() => setLang(code)}
-              className={`px-3 py-1.5 rounded-lg text-caption font-medium transition-all ${
-                lang === code ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                lang === code ? 'bg-lime-2 text-lime-dark' : 'text-text-gray'
               }`}
             >
               {label}
@@ -182,66 +333,75 @@ export default function WelcomeScreen() {
         </div>
       </div>
 
-      <div className="mb-4">
-        <div className="flex items-center justify-center mb-3">
-          <PawPrint size={32} className="text-primary" />
-          <div className="w-6 h-6 relative">
-            <div className="absolute inset-0 bg-primary rounded-full opacity-20" />
-          </div>
+      {/* Safe area top */}
+      <div className="h-10" />
+      
+      {/* Hero Section */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8 pt-12">
+        {/* Logo */}
+        <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center mb-8 shadow-lg">
+          <span className="text-6xl">🐾</span>
         </div>
-        <h1 className="text-display text-foreground tracking-tight">Paway</h1>
-      </div>
-
-      <p className="text-body mb-2 font-light">{t('tagline')}</p>
-      <p className="text-caption text-muted-foreground text-center max-w-[260px] leading-relaxed mb-10">
-        {t('findTrustedSitters')}
-      </p>
-
-      <div className="relative w-64 h-48 mb-10">
-        <div className="absolute inset-0 bg-secondary rounded-full opacity-40" />
-        <svg viewBox="0 0 200 160" className="w-full h-full">
-          <ellipse cx="75" cy="120" rx="35" ry="25" fill="#E8E0D5" />
-          <circle cx="75" cy="85" r="25" fill="#E8E0D5" />
-          <ellipse cx="55" cy="75" rx="8" ry="12" fill="#4A5D4E" />
-          <ellipse cx="95" cy="75" rx="8" ry="12" fill="#E8E0D5" />
-          <circle cx="68" cy="82" r="3" fill="#1A1A1A" />
-          <circle cx="82" cy="82" r="3" fill="#1A1A1A" />
-          <ellipse cx="75" cy="90" rx="6" ry="4" fill="#1A1A1A" />
-          <path d="M 50 110 Q 45 130 55 135" stroke="#4A5D4E" strokeWidth="4" fill="none" strokeLinecap="round" />
-          <ellipse cx="135" cy="125" rx="22" ry="18" fill="#D4A373" />
-          <circle cx="135" cy="98" r="18" fill="#D4A373" />
-          <polygon points="120,85 125,70 132,85" fill="#D4A373" />
-          <polygon points="138,85 143,70 150,85" fill="#D4A373" />
-          <circle cx="128" cy="95" r="2.5" fill="#1A1A1A" />
-          <circle cx="142" cy="95" r="2.5" fill="#1A1A1A" />
-          <ellipse cx="135" cy="100" rx="4" ry="3" fill="#E74C3C" />
-          <path d="M 125 115 Q 120 135 130 140" stroke="#D4A373" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <path d="M 165 60 C 165 55, 170 50, 175 55 C 180 50, 185 55, 185 60 C 185 68, 175 75, 175 75 C 175 75, 165 68, 165 60 Z" fill="#E74C3C" opacity="0.3" />
-        </svg>
-      </div>
-
-      <div className="flex items-center gap-4 w-full mb-10">
-        <button
-          onClick={() => setMode('login')}
-          className="btn btn-outline flex-1"
-        >
-          {t('login')}
-        </button>
-        <button
-          onClick={() => setMode('register')}
-          className="btn btn-primary flex-1"
-        >
-          {t('signUp')}
-        </button>
+        
+        {/* Title */}
+        <h1 className="font-poppins font-bold text-3xl text-card text-center mb-3">
+          Welcome to Paway
+        </h1>
+        <p className="font-inter text-text-gray text-center text-sm max-w-xs mb-12">
+          Your pet's safety and happiness in one app
+        </p>
+        
+        {/* Features Grid */}
+        <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-12">
+          {features.map((feature, idx) => {
+            const Icon = feature.icon
+            return (
+              <div 
+                key={idx}
+                className="bg-bg-darker/50 backdrop-blur-sm rounded-2xl p-4 border border-border/10"
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: `var(--${feature.color})` + '20' }}
+                >
+                  <Icon size={20} style={{ color: `var(--${feature.color})` }} />
+                </div>
+                <h3 className="font-poppins font-semibold text-card text-sm mb-1">
+                  {feature.title}
+                </h3>
+                <p className="font-inter text-text-faint text-xs leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            )
+          })}
+        </div>
       </div>
       
-      {/* DEV ONLY - Quick test access */}
-      <button
-        onClick={handleTestLogin}
-        className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-      >
-        Dev: Skip Login →
-      </button>
+      {/* CTA Buttons */}
+      <div className="px-6 pb-8 space-y-3">
+        <Button 
+          variant="primary"
+          className="w-full"
+          onClick={() => setMode('register')}
+        >
+          Get Started
+        </Button>
+        <Button 
+          variant="ghost"
+          className="w-full text-card hover:bg-card/10"
+          onClick={() => setMode('login')}
+        >
+          I already have an account
+        </Button>
+        
+        {/* DEV ONLY */}
+        <button
+          onClick={handleTestLogin}
+          className="w-full text-xs text-text-faint/50 hover:text-text-faint transition-colors pt-2"
+        >
+          Dev: Skip Login →
+        </button>
+      </div>
     </div>
   )
 }
