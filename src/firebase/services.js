@@ -30,17 +30,105 @@ import { auth, db, storage } from './firebase'
 
 // === AUTH ===
 export async function registerUser(email, password, name) {
-  const cred = await createUserWithEmailAndPassword(auth, email, password)
-  await updateProfile(cred.user, { displayName: name })
-  await setDoc(doc(db, 'users', cred.user.uid), {
-    uid: cred.user.uid,
-    email,
-    name,
+  try {
+    // Create Firebase Auth user
+    const cred = await createUserWithEmailAndPassword(auth, email, password)
+    
+    // Update display name in Auth
+    await updateProfile(cred.user, { displayName: name })
+    
+    // Create comprehensive Firestore user profile
+    await createUserProfile(cred.user.uid, {
+      email,
+      name,
+      photoURL: null,
+    })
+    
+    return cred.user
+  } catch (error) {
+    console.error('Registration error:', error)
+    throw error
+  }
+}
+
+/**
+ * Create user profile in Firestore
+ * @param {string} uid - User ID
+ * @param {object} data - User data (email, name, photoURL)
+ */
+export async function createUserProfile(uid, data) {
+  const userRef = doc(db, 'users', uid)
+  await setDoc(userRef, {
+    uid,
+    email: data.email,
+    name: data.name,
+    photoURL: data.photoURL || null,
+    fcmToken: null,
+    lastLocation: null,
     role: 'owner',
     coins: 100,
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    settings: {
+      language: 'en',
+      notifications: true,
+    }
   })
-  return cred.user
+  return uid
+}
+
+/**
+ * Get user profile from Firestore
+ * @param {string} uid - User ID
+ * @returns {Promise<object|null>} User profile or null
+ */
+export async function getUserProfile(uid) {
+  if (!uid) return null
+  
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid))
+    if (userDoc.exists()) {
+      return { id: userDoc.id, ...userDoc.data() }
+    }
+    return null
+  } catch (error) {
+    console.error('Error getting user profile:', error)
+    return null
+  }
+}
+
+/**
+ * Update user profile
+ * @param {string} uid - User ID
+ * @param {object} updates - Fields to update
+ */
+export async function updateUserProfile(uid, updates) {
+  const userRef = doc(db, 'users', uid)
+  await updateDoc(userRef, {
+    ...updates,
+    updatedAt: serverTimestamp()
+  })
+}
+
+/**
+ * Delete user account and all associated data
+ * @param {string} uid - User ID
+ */
+export async function deleteUserAccount(uid) {
+  // Delete user's pets (will be in subcollection after migration)
+  const petsQ = query(collection(db, 'users', uid, 'pets'))
+  const petsSnap = await getDocs(petsQ)
+  const petDeletes = petsSnap.docs.map(d => deleteDoc(d.ref))
+  await Promise.all(petDeletes)
+  
+  // Delete user's SOS alerts
+  const alertsQ = query(collection(db, 'sos_alerts'), where('userId', '==', uid))
+  const alertsSnap = await getDocs(alertsQ)
+  const alertDeletes = alertsSnap.docs.map(d => deleteDoc(d.ref))
+  await Promise.all(alertDeletes)
+  
+  // Delete user document
+  await deleteDoc(doc(db, 'users', uid))
 }
 
 export async function loginUser(email, password) {
@@ -53,12 +141,13 @@ export async function logoutUser() {
 
 // === USERS ===
 export async function getUser(uid) {
-  const snap = await getDoc(doc(db, 'users', uid))
-  return snap.exists() ? snap.data() : null
+  // Alias for getUserProfile for backward compatibility
+  return getUserProfile(uid)
 }
 
 export async function updateUser(uid, data) {
-  return updateDoc(doc(db, 'users', uid), data)
+  // Alias for updateUserProfile for backward compatibility
+  return updateUserProfile(uid, data)
 }
 
 /**
@@ -142,6 +231,8 @@ export async function getUsersInRadius(centerLat, centerLng, radiusInKm = 5) {
 
 // === PETS ===
 export async function addPet(ownerUid, petData) {
+  if (!ownerUid) throw new Error('ownerUid required to add pet')
+  
   const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const pet = {
     id: petId,
@@ -160,10 +251,11 @@ export async function addPet(ownerUid, petData) {
     return petId
   }
   
-  // On web, try Firebase with timeout
+  // On web, try Firebase with user-scoped subcollection
   try {
+    const userPetsRef = collection(db, 'users', ownerUid, 'pets')
     const docRef = await withTimeout(
-      addDoc(collection(db, 'pets'), {
+      addDoc(userPetsRef, {
         ...petData,
         owner_uid: ownerUid,
         createdAt: serverTimestamp(),
@@ -189,7 +281,10 @@ export async function addPet(ownerUid, petData) {
 }
 
 export async function getPets(ownerUid) {
-  if (!ownerUid) return []
+  if (!ownerUid) {
+    console.warn('getPets called without ownerUid')
+    return []
+  }
   
   // Read from localStorage for instant loading
   const getFromLocalStorage = () => {
@@ -205,15 +300,25 @@ export async function getPets(ownerUid) {
     return getFromLocalStorage()
   }
   
-  // On web, try Firebase first with timeout
+  // On web, try Firebase with user-scoped subcollection
   try {
-    const q = query(
+    // Try new path first: /users/{uid}/pets
+    const userPetsRef = collection(db, 'users', ownerUid, 'pets')
+    const q = query(userPetsRef, orderBy('createdAt', 'desc'))
+    const snap = await withTimeout(getDocs(q), 3000, getFromLocalStorage)
+    
+    if (snap.docs && snap.docs.length > 0) {
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    }
+    
+    // Fallback to old path for backward compatibility
+    const oldQ = query(
       collection(db, 'pets'), 
       where('owner_uid', '==', ownerUid),
       orderBy('createdAt', 'desc')
     )
-    const snap = await withTimeout(getDocs(q), 3000, getFromLocalStorage)
-    return snap.docs ? snap.docs.map((d) => ({ id: d.id, ...d.data() })) : snap
+    const oldSnap = await withTimeout(getDocs(oldQ), 2000, getFromLocalStorage)
+    return oldSnap.docs ? oldSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : oldSnap
   } catch (error) {
     console.warn('Firebase unavailable, using localStorage:', error.message)
     return getFromLocalStorage()
