@@ -27,6 +27,18 @@ jobs:
     - name: Install dependencies
       run: npm install
       
+    - name: Create .env file
+      run: |
+        echo "VITE_GOOGLE_MAPS_API_KEY=AIzaSyCT3CP1dnyycCUsvrmPjUWhaaKubSYC1AU" > .env
+        echo "" >> .env
+        echo "VITE_FIREBASE_API_KEY=AIzaSyC9zf8oO-stZFGmPUA8noKF3bsLvQr2yaI" >> .env
+        echo "VITE_FIREBASE_AUTH_DOMAIN=paway-d9573.firebaseapp.com" >> .env
+        echo "VITE_FIREBASE_PROJECT_ID=paway-d9573" >> .env
+        echo "VITE_FIREBASE_STORAGE_BUCKET=paway-d9573.firebasestorage.app" >> .env
+        echo "VITE_FIREBASE_MESSAGING_SENDER_ID=647433414021" >> .env
+        echo "VITE_FIREBASE_APP_ID=1:647433414021:web:744a61385afb609f3450ec" >> .env
+        echo "VITE_FIREBASE_MEASUREMENT_ID=G-19PVL5L2SN" >> .env
+      
     - name: Build web app
       run: npm run build
       
@@ -36,13 +48,13 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x android/gradlew
       
-    - name: Build Release APK
+    - name: Build Debug APK
       working-directory: ./android
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: paway-release-apk
-        path: android/app/build/outputs/apk/release/app-release.apk
+        name: app-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
         retention-days: 14
