@@ -18,7 +18,7 @@ service cloud.firestore {
     // USERS COLLECTION
     // ============================================
     match /users/{userId} {
-      // Anyone authenticated can read user profiles
+      // Anyone authenticated can read user profiles (for SOS alerts, messaging)
       allow read: if isAuthenticated();
       
       // Only user can create their own profile
@@ -26,10 +26,19 @@ service cloud.firestore {
       
       // Only user can update/delete their own profile
       allow update, delete: if isAuthenticated() && isOwner(userId);
+      
+      // User's pets subcollection (NEW - user-scoped pets)
+      match /pets/{petId} {
+        // Anyone authenticated can read pets (for SOS alerts)
+        allow read: if isAuthenticated();
+        
+        // Only pet owner can create/update/delete their pets
+        allow create, update, delete: if isAuthenticated() && isOwner(userId);
+      }
     }
     
     // ============================================
-    // PETS COLLECTION - MVP Feature #3
+    // PETS COLLECTION - LEGACY (kept for backward compatibility)
     // ============================================
     match /pets/{petId} {
       // Anyone authenticated can read pet profiles (for SOS alerts)
@@ -98,6 +107,41 @@ service cloud.firestore {
     }
     
     // ============================================
+    // MESSAGING - Conversations & Messages
+    // ============================================
+    match /conversations/{conversationId} {
+      // Users can read conversations they're part of
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.participantIds;
+      
+      // Users can create conversations
+      allow create: if isAuthenticated() && 
+        request.auth.uid in request.resource.data.participantIds;
+      
+      // Participants can update conversation metadata
+      allow update: if isAuthenticated() && 
+        request.auth.uid in resource.data.participantIds;
+      
+      // No one can delete conversations
+      allow delete: if false;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Users can read messages from their conversations
+        allow read: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        
+        // Users can send messages to their conversations
+        allow create: if isAuthenticated() && 
+          request.auth.uid == request.resource.data.senderId &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        
+        // No updates or deletes for messages
+        allow update, delete: if false;
+      }
+    }
+    
+    // ============================================
     // LEGACY COLLECTIONS (keep for backward compatibility)
     // ============================================
     match /services/{serviceId} {
@@ -108,16 +152,6 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow read: if isAuthenticated();
       allow write: if false; // Disabled for MVP Phase 1
-    }
-    
-    match /conversations/{conversationId} {
-      allow read: if isAuthenticated();
-      allow write: if false; // Disabled for MVP Phase 1
-      
-      match /messages/{messageId} {
-        allow read: if isAuthenticated();
-        allow write: if false; // Disabled for MVP Phase 1
-      }
     }
     
     match /nearby_dogs/{dogId} {
