@@ -22,6 +22,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
@@ -169,6 +170,24 @@ export async function loginWithGoogle() {
 
 export async function logoutUser() {
   return signOut(auth)
+}
+
+/**
+ * Send password reset email
+ * @param {string} email - User email
+ */
+export async function resetPassword(email) {
+  if (!email || !email.trim()) {
+    throw new Error('Email is required')
+  }
+  
+  try {
+    await sendPasswordResetEmail(auth, email.trim())
+    console.log('✅ Password reset email sent to:', email)
+  } catch (error) {
+    console.error('❌ Error sending password reset email:', error)
+    throw error
+  }
 }
 
 // === USERS ===

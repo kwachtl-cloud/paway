@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff } from 'lucide-react'
-import { loginUser, registerUser, loginWithGoogle } from '../firebase/services'
+import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff, X } from 'lucide-react'
+import { loginUser, registerUser, loginWithGoogle, resetPassword } from '../firebase/services'
 import DarkHeader from '../components/DarkHeader'
 import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
@@ -15,6 +15,9 @@ export default function WelcomeScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -82,6 +85,27 @@ export default function WelcomeScreen() {
     return { label: 'Strong', color: 'teal' }
   }
 
+  // Handle password reset
+  const handlePasswordReset = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    
+    try {
+      await resetPassword(resetEmail)
+      setResetSuccess(true)
+      setTimeout(() => {
+        setShowResetModal(false)
+        setResetSuccess(false)
+        setResetEmail('')
+      }, 3000)
+    } catch (err) {
+      setError(err.message.replace('Firebase: ', '').replace('auth/', ''))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const passwordStrength = mode === 'register' ? getPasswordStrength(password) : null
 
   // Login Screen
@@ -128,9 +152,22 @@ export default function WelcomeScreen() {
             </div>
 
             <div>
-              <label className="block font-inter text-sm font-medium text-text-dark mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block font-inter text-sm font-medium text-text-dark">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(true)
+                    setResetEmail(email)
+                    setError('')
+                  }}
+                  className="font-inter text-xs text-lime-2 font-semibold hover:text-lime-1 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
                 <input
@@ -471,5 +508,97 @@ export default function WelcomeScreen() {
         </button>
       </div>
     </div>
+    
+    {/* Password Reset Modal */}
+    {showResetModal && (
+      <div className="fixed inset-0 bg-bg-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-6 border-b border-border">
+            <h3 className="font-poppins font-semibold text-lg text-text-dark">
+              Reset Password
+            </h3>
+            <button
+              onClick={() => {
+                setShowResetModal(false)
+                setResetSuccess(false)
+                setError('')
+              }}
+              className="w-8 h-8 rounded-lg bg-card-2 flex items-center justify-center hover:bg-border transition-colors"
+            >
+              <X size={18} className="text-text-gray" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-6">
+            {resetSuccess ? (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-teal/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail size={32} className="text-teal" />
+                </div>
+                <h4 className="font-poppins font-semibold text-text-dark mb-2">
+                  Email Sent!
+                </h4>
+                <p className="font-inter text-sm text-text-gray">
+                  Check your inbox for a password reset link.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <p className="font-inter text-sm text-text-gray mb-4">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+
+                <div>
+                  <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-gray" />
+                    <input
+                      type="email"
+                      placeholder="you@example.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-card-2 rounded-xl font-inter text-sm border-0 focus:ring-2 focus:ring-lime-2 outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="bg-coral/10 text-coral px-4 py-3 rounded-xl text-sm font-inter">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowResetModal(false)
+                      setError('')
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {loading ? 'Sending...' : 'Send Link'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
   )
 }
