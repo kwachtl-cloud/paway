@@ -1,10 +1,10 @@
-import { Home, MapPin, PawPrint, User } from 'lucide-react'
+import { Home, MessageSquare, PawPrint, User } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 // MVP TABS - tylko kluczowe funkcjonalności
 const tabIcons = [
   { id: 'home', icon: Home, labelKey: 'home' },
-  { id: 'park-radar', icon: MapPin, labelKey: 'parkRadar' },
+  { id: 'messages', icon: MessageSquare, labelKey: 'messages' },
   { id: 'pet-passport', icon: PawPrint, labelKey: 'petPassport' },
   { id: 'profile', icon: User, labelKey: 'profile' },
 ]

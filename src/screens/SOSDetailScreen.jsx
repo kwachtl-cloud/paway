@@ -13,18 +13,20 @@ import {
   getSOSAlert, 
   reportSighting, 
   markAlertAsViewed,
-  resolveSOSAlert 
+  resolveSOSAlert,
+  getOrCreateConversation 
 } from '../firebase/services'
 import { getCurrentPosition } from '../utils/geolocation'
 
 export default function SOSDetailScreen() {
-  const { t, goBack, user, selectedAlertId } = useApp()
+  const { t, goBack, user, navigate, selectedAlertId } = useApp()
   const [alert, setAlert] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showSightingForm, setShowSightingForm] = useState(false)
   const [sightingNote, setSightingNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [contactingOwner, setContactingOwner] = useState(false)
   
   useEffect(() => {
     if (!selectedAlertId) {
@@ -204,7 +206,34 @@ export default function SOSDetailScreen() {
       
       {/* Actions */}
       {alert.userId !== user?.uid && !showSightingForm && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
+          {/* Contact Owner */}
+          <button
+            onClick={async () => {
+              if (!user?.uid || !alert.userId) return
+              setContactingOwner(true)
+              try {
+                const convId = await getOrCreateConversation(
+                  user.uid,
+                  alert.userId,
+                  { name: alert.userName || 'Pet Owner', email: '' }
+                )
+                navigate('chat', { conversationId: convId, otherUser: { name: alert.userName || 'Pet Owner' } })
+              } catch (error) {
+                console.error('Error creating conversation:', error)
+                alert('Could not start conversation. Please try again.')
+              } finally {
+                setContactingOwner(false)
+              }
+            }}
+            disabled={contactingOwner}
+            className="w-full py-4 bg-card border-2 border-primary text-primary rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+          >
+            <MessageSquare size={20} />
+            {contactingOwner ? t('connecting') || 'Connecting...' : t('contactOwner') || 'Contact Owner'}
+          </button>
+          
+          {/* Report Sighting */}
           <button
             onClick={() => setShowSightingForm(true)}
             className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform"
