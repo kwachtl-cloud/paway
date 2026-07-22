@@ -11,6 +11,8 @@ import {
   where,
   orderBy,
   limit,
+  startAt,
+  endAt,
   onSnapshot,
   addDoc,
   serverTimestamp,
@@ -604,10 +606,9 @@ export async function getSOSAlertsNearby(centerLat, centerLng, radiusInKm = 10) 
     const promises = bounds.map((b) => {
       const q = query(
         collection(db, 'sos_alerts'),
-        where('status', '==', 'active'),
         orderBy('location.geohash'),
-        where('location.geohash', '>=', b[0]),
-        where('location.geohash', '<=', b[1])
+        startAt(b[0]),
+        endAt(b[1])
       )
       return getDocs(q)
     })
@@ -621,6 +622,9 @@ export async function getSOSAlertsNearby(centerLat, centerLng, radiusInKm = 10) 
         const loc = data.location
         
         if (!loc) continue
+        
+        // Filter by status in code instead of query
+        if (data.status !== 'active') continue
         
         const distanceInKm = distanceBetween([loc.lat, loc.lng], [centerLat, centerLng])
         const distanceInM = distanceInKm * 1000
