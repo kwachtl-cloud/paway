@@ -23,6 +23,10 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth'
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { geohashForLocation, geohashQueryBounds, distanceBetween } from 'geofire-common'
@@ -133,6 +137,34 @@ export async function deleteUserAccount(uid) {
 
 export async function loginUser(email, password) {
   return signInWithEmailAndPassword(auth, email, password)
+}
+
+export async function loginWithGoogle() {
+  const provider = new GoogleAuthProvider()
+  
+  try {
+    // Use popup for web, redirect for mobile
+    const result = isNativePlatform() 
+      ? await signInWithRedirect(auth, provider)
+      : await signInWithPopup(auth, provider)
+    
+    const user = result.user
+    
+    // Check if user profile exists, if not create it
+    const existingProfile = await getUserProfile(user.uid)
+    if (!existingProfile) {
+      await createUserProfile(user.uid, {
+        email: user.email,
+        name: user.displayName || 'User',
+        photoURL: user.photoURL,
+      })
+    }
+    
+    return user
+  } catch (error) {
+    console.error('Google sign-in error:', error)
+    throw error
+  }
 }
 
 export async function logoutUser() {

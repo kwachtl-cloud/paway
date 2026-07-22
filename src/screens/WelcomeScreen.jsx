@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff } from 'lucide-react'
-import { loginUser, registerUser } from '../firebase/services'
+import { loginUser, registerUser, loginWithGoogle } from '../firebase/services'
 import DarkHeader from '../components/DarkHeader'
 import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
@@ -29,6 +29,26 @@ export default function WelcomeScreen() {
         const cred = await registerUser(email, password, name)
         setUser({ uid: cred.uid, name, email })
       }
+      navigate('home')
+    } catch (err) {
+      setError(err.message.replace('Firebase: ', '').replace('auth/', ''))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError('')
+    setLoading(true)
+    
+    try {
+      const user = await loginWithGoogle()
+      setUser({
+        uid: user.uid,
+        name: user.displayName || 'User',
+        email: user.email,
+        photoURL: user.photoURL
+      })
       navigate('home')
     } catch (err) {
       setError(err.message.replace('Firebase: ', '').replace('auth/', ''))
@@ -146,6 +166,30 @@ export default function WelcomeScreen() {
             >
               {loading ? 'Logging in...' : 'Log In'}
             </Button>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-card px-2 text-text-gray font-inter">or</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
+                <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
+                <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
+                <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
+              </svg>
+              Continue with Google
+            </button>
 
             <button
               type="button"
@@ -272,6 +316,30 @@ export default function WelcomeScreen() {
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-card px-2 text-text-gray font-inter">or</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
+                <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
+                <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
+                <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
+              </svg>
+              Continue with Google
+            </button>
 
             <button
               type="button"
