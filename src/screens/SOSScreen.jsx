@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { AlertTriangle, CheckCircle, MapPin, Loader2, Phone, MessageSquare } from 'lucide-react'
-import { sendSOSAlert, updateUserLocation } from '../firebase/services'
-import { getPets } from '../firebase/services'
+import { AlertTriangle, CheckCircle, MapPin, Loader2, Phone, ArrowLeft, ChevronRight } from 'lucide-react'
+import { sendSOSAlert, updateUserLocation, getPets } from '../firebase/services'
 import { getCurrentPosition } from '../utils/geolocation'
+import DarkHeader from '../components/DarkHeader'
+import WhiteCard from '../components/WhiteCard'
+import Button from '../components/Button'
+import StatusPill from '../components/StatusPill'
+import Card from '../components/Card'
 
 export default function SOSScreen() {
-  const { t, goBack, user } = useApp()
+  const { t, goBack, navigate, user } = useApp()
   const [step, setStep] = useState(1) // 1: select pet, 2: details, 3: confirm, 4: sent
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -106,265 +110,353 @@ export default function SOSScreen() {
     }
   }
 
-  
   if (loadingPets) {
     return (
-      <div className="min-h-screen bg-sos-red text-white flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin" />
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center">
+        <Loader2 size={32} className="text-lime-1 animate-spin" />
+      </div>
+    )
+  }
+
+  // Step 4: Success Screen
+  if (sent) {
+    return (
+      <div className="min-h-screen bg-bg-dark pb-24">
+        <DarkHeader 
+          title="Alert Sent!"
+          onBack={() => {
+            setSent(false)
+            setStep(1)
+            goBack()
+          }}
+        />
+        
+        <WhiteCard>
+          <div className="flex flex-col items-center text-center py-8">
+            <div className="w-20 h-20 rounded-full bg-teal/10 flex items-center justify-center mb-6">
+              <CheckCircle size={48} className="text-teal" />
+            </div>
+            
+            <h2 className="font-poppins font-bold text-2xl text-text-dark mb-3">
+              SOS Alert Sent
+            </h2>
+            
+            <StatusPill color="coral" className="mb-4">
+              URGENT - {nearbyCount} nearby users notified
+            </StatusPill>
+            
+            <p className="font-inter text-text-gray text-sm max-w-xs leading-relaxed mb-8">
+              Your alert has been sent to {nearbyCount} pet owners within 10km. They can contact you directly if they see {selectedPet?.name}.
+            </p>
+            
+            <div className="w-full space-y-3">
+              <Button 
+                variant="primary" 
+                onClick={() => navigate('home')}
+                className="w-full"
+              >
+                Back to Home
+              </Button>
+              
+              <Button 
+                variant="secondary"
+                onClick={() => navigate('messages')}
+                className="w-full"
+              >
+                Check Messages
+              </Button>
+            </div>
+          </div>
+        </WhiteCard>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-sos-red text-white px-4 pt-6 pb-32 flex flex-col">
-      {/* Step 4: Success */}
-      {sent ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4">
-            <CheckCircle size={48} />
+    <div className="min-h-screen bg-bg-dark pb-24">
+      <DarkHeader 
+        title="SOS Alert"
+        onBack={step > 1 ? () => setStep(step - 1) : goBack}
+      >
+        {/* Hero section with large icon */}
+        <div className="px-4 pb-6 pt-2 text-center">
+          <div className="w-20 h-20 rounded-full bg-coral/20 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={40} className="text-coral" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">{t('alertSentTitle')}</h2>
-          <p className="text-white/80 text-sm mb-2">
-            {t('alertSent').replace('{count}', nearbyCount || 0)}
+          <h2 className="font-poppins font-semibold text-lg text-card mb-2">
+            Report Lost Pet
+          </h2>
+          <p className="font-inter text-text-gray text-sm">
+            Alert nearby pet owners instantly
           </p>
-          <p className="text-white/60 text-xs max-w-[280px] leading-relaxed">
-            {t('sosAlertSentDescription')}
-          </p>
-          
-          <button
-            onClick={goBack}
-            className="mt-8 px-8 py-3 bg-white text-sos-red rounded-xl font-semibold active:scale-95 transition-transform"
-          >
-            {t('backToHome')}
-          </button>
         </div>
-      ) : (
-        <>
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
-              <AlertTriangle size={48} />
+      </DarkHeader>
+      
+      <WhiteCard>
+        {/* Progress Indicator */}
+        <div className="flex justify-center gap-2 mb-8">
+          {[1, 2, 3].map(s => (
+            <div 
+              key={s}
+              className={`h-1 rounded-full transition-all ${
+                s === step ? 'w-12 bg-lime-2' : 
+                s < step ? 'w-6 bg-lime-1' : 'w-6 bg-border'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Step 1: Select Pet */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-poppins font-semibold text-base text-text-dark mb-1">
+                Select Your Pet
+              </h3>
+              <p className="font-inter text-sm text-text-gray mb-4">
+                Which pet is missing?
+              </p>
             </div>
-            <h1 className="text-2xl font-bold mb-2">{t('sosEmergency')}</h1>
-            <p className="text-white/80 text-sm">{t('reportLostPet')}</p>
-          </div>
-
-          {/* Progress Indicator */}
-          <div className="flex justify-center gap-2 mb-8">
-            {[1, 2, 3].map(s => (
-              <div 
-                key={s}
-                className={`h-1 rounded-full transition-all ${
-                  s === step ? 'w-12 bg-white' : 
-                  s < step ? 'w-6 bg-white/80' : 'w-6 bg-white/30'
-                }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex-1">
-            {/* Step 1: Select Pet */}
-            {step === 1 && (
-              <div className="animate-fade-in">
-                <h3 className="font-semibold text-lg mb-4">{t('selectPet')}</h3>
-                
-                {pets.length === 0 ? (
-                  <div className="bg-white/10 rounded-2xl p-6 text-center">
-                    <p className="text-white/80 text-sm mb-4">{t('noPetsAddedYet')}</p>
-                    <button
-                      onClick={() => {/* Navigate to Pet Passport */}}
-                      className="text-white font-semibold underline"
-                    >
-                      {t('addPetFirst')}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {pets.map(pet => (
-                      <button
-                        key={pet.id}
-                        onClick={() => {
-                          setSelectedPet(pet)
-                          setStep(2)
-                        }}
-                        className={`w-full bg-white/10 hover:bg-white/20 rounded-2xl p-4 flex items-center gap-4 transition-colors active:scale-95 ${
-                          selectedPet?.id === pet.id ? 'ring-2 ring-white' : ''
-                        }`}
-                      >
-                        {pet.photos?.[0] ? (
-                          <img
-                            src={pet.photos[0]}
-                            alt={pet.name}
-                            className="w-16 h-16 rounded-xl object-cover"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
-                            <AlertTriangle size={24} />
-                          </div>
-                        )}
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold">{pet.name}</p>
-                          <p className="text-sm text-white/70">{pet.breed || pet.species}</p>
+            
+            {pets.length === 0 ? (
+              <Card className="text-center py-8">
+                <AlertTriangle size={32} className="text-amber mx-auto mb-4" />
+                <p className="font-inter text-text-dark mb-4">
+                  No pets added yet
+                </p>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate('pet-passport')}
+                >
+                  Add Your First Pet
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {pets.map(pet => (
+                  <Card
+                    key={pet.id}
+                    onClick={() => {
+                      setSelectedPet(pet)
+                      setStep(2)
+                    }}
+                    className={`cursor-pointer hover:border-lime-2 transition-colors ${
+                      selectedPet?.id === pet.id ? 'border-lime-2 border-2' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      {pet.photos?.[0] ? (
+                        <img
+                          src={pet.photos[0]}
+                          alt={pet.name}
+                          className="w-16 h-16 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gradient-to-br from-lime-1 to-lime-2 rounded-xl flex items-center justify-center text-2xl">
+                          {pet.species === 'dog' ? '🐕' : pet.species === 'cat' ? '🐱' : '🐾'}
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                      )}
+                      <div className="flex-1">
+                        <p className="font-poppins font-semibold text-text-dark">{pet.name}</p>
+                        <p className="font-inter text-sm text-text-gray">{pet.breed || pet.species}</p>
+                      </div>
+                      <ChevronRight size={20} className="text-text-gray" />
+                    </div>
+                  </Card>
+                ))}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Step 2: Details */}
-            {step === 2 && selectedPet && (
-              <div className="animate-fade-in space-y-4">
-                <h3 className="font-semibold text-lg mb-4">{t('alertDetails')}</h3>
-                
-                {/* Selected Pet Card */}
-                <div className="bg-white/10 rounded-2xl p-4 flex items-center gap-3 mb-4">
-                  {selectedPet.photos?.[0] ? (
+        {/* Step 2: Details */}
+        {step === 2 && selectedPet && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-poppins font-semibold text-base text-text-dark mb-1">
+                Alert Details
+              </h3>
+              <p className="font-inter text-sm text-text-gray mb-4">
+                Help others identify {selectedPet.name}
+              </p>
+            </div>
+            
+            {/* Selected Pet Preview */}
+            <Card>
+              <div className="flex items-center gap-3">
+                {selectedPet.photos?.[0] ? (
+                  <img
+                    src={selectedPet.photos[0]}
+                    alt={selectedPet.name}
+                    className="w-14 h-14 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-14 h-14 bg-gradient-to-br from-lime-1 to-lime-2 rounded-xl flex items-center justify-center text-xl">
+                    {selectedPet.species === 'dog' ? '🐕' : '🐱'}
+                  </div>
+                )}
+                <div>
+                  <p className="font-poppins font-semibold text-text-dark">{selectedPet.name}</p>
+                  <p className="font-inter text-sm text-text-gray">{selectedPet.breed || selectedPet.species}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Last Seen Time */}
+            <div>
+              <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                Last Seen When?
+              </label>
+              <input
+                type="datetime-local"
+                value={lastSeenTime}
+                onChange={(e) => setLastSeenTime(e.target.value)}
+                className="w-full px-4 py-3 bg-card-2 text-text-dark rounded-xl border-0 focus:ring-2 focus:ring-lime-2 outline-none font-inter text-sm"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                What Happened?
+              </label>
+              <textarea
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe where and when you last saw your pet..."
+                maxLength={200}
+                className="w-full px-4 py-3 bg-card-2 text-text-dark placeholder-text-faint rounded-xl border-0 focus:ring-2 focus:ring-lime-2 outline-none resize-none font-inter text-sm"
+              />
+              <p className="text-xs text-text-faint mt-1 font-inter">{description.length}/200</p>
+            </div>
+
+            {/* Contact Phone */}
+            <div>
+              <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                <Phone size={14} className="inline mr-1" />
+                Contact Phone
+              </label>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="+48 123 456 789"
+                className="w-full px-4 py-3 bg-card-2 text-text-dark placeholder-text-faint rounded-xl border-0 focus:ring-2 focus:ring-lime-2 outline-none font-inter text-sm"
+              />
+            </div>
+
+            {/* Location Info */}
+            {location && (
+              <Card className="bg-teal/5 border-teal/20">
+                <div className="flex items-center gap-2">
+                  <MapPin size={16} className="text-teal" />
+                  <span className="font-inter text-xs text-teal">Current location detected</span>
+                </div>
+              </Card>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setStep(1)}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setStep(3)}
+                className="flex-1"
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Confirm */}
+        {step === 3 && selectedPet && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-poppins font-semibold text-base text-text-dark mb-1">
+                Confirm Alert
+              </h3>
+              <p className="font-inter text-sm text-text-gray mb-4">
+                Review before sending
+              </p>
+            </div>
+            
+            <Card>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  {selectedPet.photos?.[0] && (
                     <img
                       src={selectedPet.photos[0]}
                       alt={selectedPet.name}
-                      className="w-14 h-14 rounded-xl object-cover"
+                      className="w-16 h-16 rounded-xl object-cover"
                     />
-                  ) : (
-                    <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-                      <AlertTriangle size={24} />
-                    </div>
                   )}
                   <div>
-                    <p className="font-semibold">{selectedPet.name}</p>
-                    <p className="text-sm text-white/70">{selectedPet.breed || selectedPet.species}</p>
+                    <p className="font-poppins font-bold text-lg text-text-dark">{selectedPet.name}</p>
+                    <p className="font-inter text-sm text-text-gray">{selectedPet.breed || selectedPet.species}</p>
                   </div>
                 </div>
-
-                {/* Last Seen Time */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">{t('lastSeenWhen')}</label>
-                  <input
-                    type="datetime-local"
-                    value={lastSeenTime}
-                    onChange={(e) => setLastSeenTime(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 text-white placeholder-white/50 rounded-xl border border-white/20 focus:outline-none focus:border-white/50"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">{t('whatHappened')}</label>
-                  <textarea
-                    rows={3}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t('describeWhatHappened')}
-                    maxLength={200}
-                    className="w-full px-4 py-3 bg-white/10 text-white placeholder-white/50 rounded-xl border border-white/20 focus:outline-none focus:border-white/50 resize-none"
-                  />
-                  <p className="text-xs text-white/50 mt-1">{description.length}/200</p>
-                </div>
-
-                {/* Contact Phone */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    <Phone size={14} className="inline mr-1" />
-                    {t('contactPhone')}
-                  </label>
-                  <input
-                    type="tel"
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="+48 123 456 789"
-                    className="w-full px-4 py-3 bg-white/10 text-white placeholder-white/50 rounded-xl border border-white/20 focus:outline-none focus:border-white/50"
-                  />
-                </div>
-
-                {/* Location Info */}
-                {location && (
-                  <div className="bg-white/10 rounded-xl p-3 flex items-center gap-2">
-                    <MapPin size={16} />
-                    <span className="text-xs">{t('currentLocationDetected')}</span>
+                
+                {description && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="font-inter text-xs text-text-gray mb-1">Description</p>
+                    <p className="font-inter text-sm text-text-dark">{description}</p>
                   </div>
                 )}
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="flex-1 py-3 bg-white/20 rounded-xl font-semibold active:scale-95 transition-transform"
-                  >
-                    {t('back')}
-                  </button>
-                  <button
-                    onClick={() => setStep(3)}
-                    className="flex-1 py-3 bg-white text-sos-red rounded-xl font-semibold active:scale-95 transition-transform"
-                  >
-                    {t('continue')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Confirm */}
-            {step === 3 && selectedPet && (
-              <div className="animate-fade-in">
-                <h3 className="font-semibold text-lg mb-4">{t('confirmAlert')}</h3>
                 
-                <div className="bg-white/10 rounded-2xl p-5 mb-6 space-y-3">
-                  <div className="flex items-center gap-3">
-                    {selectedPet.photos?.[0] && (
-                      <img
-                        src={selectedPet.photos[0]}
-                        alt={selectedPet.name}
-                        className="w-16 h-16 rounded-xl object-cover"
-                      />
-                    )}
-                    <div>
-                      <p className="font-bold text-lg">{selectedPet.name}</p>
-                      <p className="text-sm text-white/70">{selectedPet.breed || selectedPet.species}</p>
-                    </div>
+                {contactPhone && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="font-inter text-xs text-text-gray mb-1">Contact Phone</p>
+                    <p className="font-inter text-sm text-text-dark font-mono">{contactPhone}</p>
                   </div>
-                  
-                  {description && (
-                    <div className="pt-3 border-t border-white/20">
-                      <p className="text-xs text-white/60 mb-1">{t('description')}</p>
-                      <p className="text-sm">{description}</p>
-                    </div>
-                  )}
-                  
-                  {contactPhone && (
-                    <div className="pt-3 border-t border-white/20">
-                      <p className="text-xs text-white/60 mb-1">{t('contactPhone')}</p>
-                      <p className="text-sm font-mono">{contactPhone}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-white leading-relaxed">
-                    {t('alertWillBeSent')}
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setStep(2)}
-                    disabled={sending}
-                    className="flex-1 py-3 bg-white/20 rounded-xl font-semibold active:scale-95 transition-transform disabled:opacity-50"
-                  >
-                    {t('back')}
-                  </button>
-                  <button
-                    onClick={handleSendAlert}
-                    disabled={sending}
-                    className="flex-1 py-3 bg-white text-sos-red rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {sending && <Loader2 size={18} className="animate-spin" />}
-                    {sending ? t('sending') : t('sendAlert')}
-                  </button>
-                </div>
+                )}
+                
+                {lastSeenTime && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="font-inter text-xs text-text-gray mb-1">Last Seen</p>
+                    <p className="font-inter text-sm text-text-dark">{new Date(lastSeenTime).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
-            )}
+            </Card>
+
+            <Card className="bg-amber/5 border-amber/20">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={20} className="text-amber flex-shrink-0 mt-0.5" />
+                <p className="font-inter text-sm text-text-dark leading-relaxed">
+                  This alert will be sent to all pet owners within 10km of your location via push notification.
+                </p>
+              </div>
+            </Card>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setStep(2)}
+                disabled={sending}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSendAlert}
+                disabled={sending}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                {sending && <Loader2 size={18} className="animate-spin" />}
+                {sending ? 'Sending...' : 'Send Alert'}
+              </Button>
+            </div>
           </div>
-        </>
-      )}
+        )}
+      </WhiteCard>
     </div>
   )
 }
