@@ -41,6 +41,19 @@ export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5
     })
   }
 
+  // Convert base64 to File object
+  const base64ToFile = (base64String, filename = 'photo.jpg') => {
+    const arr = base64String.split(',')
+    const mime = arr[0].match(/:(.*?);/)[1]
+    const bstr = atob(arr[1])
+    let n = bstr.length
+    const u8arr = new Uint8Array(n)
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n)
+    }
+    return new File([u8arr], filename, { type: mime })
+  }
+
   // Take photo using Capacitor Camera (mobile)
   const handleTakePhoto = async () => {
     if (photos.length >= maxPhotos) return
@@ -62,7 +75,10 @@ export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5
         const base64 = `data:image/jpeg;base64,${image.base64String}`
         const compressed = await compressImage(base64)
         
-        onPhotosChange([...photos, { preview: compressed, file: null }])
+        // Convert base64 to File object so it works with uploadPetPhoto
+        const file = base64ToFile(compressed, `pet_photo_${Date.now()}.jpg`)
+        
+        onPhotosChange([...photos, { preview: compressed, file }])
       }
     } catch (error) {
       if (error.message !== 'User cancelled photos app') {
