@@ -3,16 +3,21 @@ import { useApp } from '../context/AppContext'
 import { 
   Dog, 
   Users,
-  CheckCircle,
-  Clock,
   MapPin,
   List,
-  Map as MapIcon
+  Map as MapIcon,
+  Locate,
+  Plus,
+  Minus
 } from 'lucide-react'
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api'
 import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById } from '../firebase/services'
 import PetDetailModal from '../components/PetDetailModal'
 import { getCurrentPosition } from '../utils/geolocation'
+import DarkHeader from '../components/DarkHeader'
+import Card from '../components/Card'
+import StatusPill from '../components/StatusPill'
+import Button from '../components/Button'
 
 const MAPS_API_KEY = 'AIzaSyCT3CP1dnyycCUsvrmPjUWhaaKubSYC1AU'
 
@@ -21,6 +26,20 @@ const placeTypeIcons = {
   vet_24h: '🏥',
   pet_cafe: '☕',
   pet_store: '🛒'
+}
+
+const placeTypeLabels = {
+  dog_park: 'Dog Park',
+  vet_24h: 'Vet 24/7',
+  pet_cafe: 'Pet Café',
+  pet_store: 'Pet Store'
+}
+
+const placeTypeColors = {
+  dog_park: 'green',
+  vet_24h: 'teal',
+  pet_cafe: 'amber',
+  pet_store: 'blue'
 }
 
 export default function ParkRadarScreen() {
@@ -32,6 +51,7 @@ export default function ParkRadarScreen() {
   const [selectedPlace, setSelectedPlace] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [mapRef, setMapRef] = useState(null)
   
   // Check-in state
   const [showCheckInDialog, setShowCheckInDialog] = useState(false)
@@ -166,13 +186,32 @@ export default function ParkRadarScreen() {
       console.error('Error loading pet details:', error)
     }
   }
+
+  const handleRecenterMap = () => {
+    if (mapRef && currentLocation) {
+      mapRef.panTo(currentLocation)
+      mapRef.setZoom(13)
+    }
+  }
+
+  const handleZoomIn = () => {
+    if (mapRef) {
+      mapRef.setZoom(mapRef.getZoom() + 1)
+    }
+  }
+
+  const handleZoomOut = () => {
+    if (mapRef) {
+      mapRef.setZoom(mapRef.getZoom() - 1)
+    }
+  }
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center">
         <div className="text-center">
-          <Dog className="animate-bounce mx-auto mb-4" size={48} />
-          <p className="text-muted-foreground">Loading places...</p>
+          <Dog className="animate-bounce mx-auto mb-4 text-lime-1" size={48} />
+          <p className="font-inter text-text-gray">Loading places...</p>
         </div>
       </div>
     )
@@ -187,42 +226,52 @@ export default function ParkRadarScreen() {
         setViewMode('list') // Fallback to list if Maps fails
       }}
     >
-      <div className="min-h-screen bg-background pb-32">
-        <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-          <div className="flex-1">
-            <h1 className="text-lg font-bold">Park Radar</h1>
-            <p className="text-xs text-muted-foreground">{places.length} places nearby</p>
-          </div>
-          
-          {/* Toggle between Map and List */}
-          <button
-            onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
-            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+      <div className="min-h-screen bg-bg-dark pb-24 relative">
+        {/* Overlay DarkHeader with view toggle */}
+        <div className="absolute top-0 left-0 right-0 z-30">
+          <DarkHeader 
+            title="Park Radar"
+            subtitle={`${places.length} places nearby`}
+            showBack={false}
           >
-            {viewMode === 'map' ? (
-              <>
-                <List size={16} />
-                Lista
-              </>
-            ) : (
-              <>
-                <MapIcon size={16} />
+            <div className="px-4 pb-4 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-poppins font-semibold transition-all ${
+                  viewMode === 'map' 
+                    ? 'bg-lime-gradient text-bg-dark' 
+                    : 'bg-card-2 text-text-dark'
+                }`}
+              >
+                <MapIcon size={18} />
                 Mapa
-              </>
-            )}
-          </button>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-poppins font-semibold transition-all ${
+                  viewMode === 'list' 
+                    ? 'bg-lime-gradient text-bg-dark' 
+                    : 'bg-card-2 text-text-dark'
+                }`}
+              >
+                <List size={18} />
+                Lista
+              </button>
+            </div>
+          </DarkHeader>
         </div>
         
         {/* Map View */}
         {viewMode === 'map' && mapLoaded && currentLocation && (
-          <div className="h-[calc(100vh-140px)]">
+          <div className="h-screen">
             <GoogleMap
               mapContainerStyle={{ width: '100%', height: '100%' }}
               center={currentLocation}
               zoom={13}
+              onLoad={map => setMapRef(map)}
               options={{
-                disableDefaultUI: false,
-                zoomControl: true,
+                disableDefaultUI: true,
+                zoomControl: false,
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: false,
@@ -234,7 +283,7 @@ export default function ParkRadarScreen() {
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
                   scale: 8,
-                  fillColor: '#4F46E5',
+                  fillColor: '#B7E86B',
                   fillOpacity: 1,
                   strokeColor: '#ffffff',
                   strokeWeight: 2,
@@ -260,13 +309,14 @@ export default function ParkRadarScreen() {
                   onCloseClick={() => setSelectedPlace(null)}
                 >
                   <div className="p-2 max-w-xs">
-                    <h3 className="font-bold text-sm mb-1">{selectedPlace.name}</h3>
-                    <p className="text-xs text-gray-600 mb-2">{selectedPlace.location.address}</p>
+                    <h3 className="font-poppins font-semibold text-sm mb-1">{selectedPlace.name}</h3>
+                    <p className="font-inter text-xs text-text-faint mb-2">{selectedPlace.location.address}</p>
                     <button
-                      onClick={() => {
-                        setShowCheckInDialog(true)
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCheckInClick()
                       }}
-                      className="w-full px-3 py-1.5 bg-primary text-white rounded text-xs font-medium"
+                      className="w-full px-3 py-2 bg-lime-gradient text-bg-dark rounded-lg font-poppins font-semibold text-xs"
                     >
                       Check In
                     </button>
@@ -274,87 +324,117 @@ export default function ParkRadarScreen() {
                 </InfoWindow>
               )}
             </GoogleMap>
+
+            {/* Map Control Buttons (absolute positioned) */}
+            <div className="absolute right-4 bottom-32 flex flex-col gap-3 z-20">
+              <button
+                onClick={handleRecenterMap}
+                className="w-12 h-12 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
+              >
+                <Locate size={20} className="text-text-dark" />
+              </button>
+              <button
+                onClick={handleZoomIn}
+                className="w-12 h-12 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
+              >
+                <Plus size={20} className="text-text-dark" />
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="w-12 h-12 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
+              >
+                <Minus size={20} className="text-text-dark" />
+              </button>
+            </div>
           </div>
         )}
         
         {/* Loading map message */}
         {viewMode === 'map' && !mapLoaded && (
-          <div className="h-[calc(100vh-140px)] flex items-center justify-center">
+          <div className="h-screen flex items-center justify-center">
             <div className="text-center">
-              <MapIcon className="animate-pulse mx-auto mb-4" size={48} />
-              <p className="text-muted-foreground">Loading map...</p>
+              <MapIcon className="animate-pulse mx-auto mb-4 text-lime-1" size={48} />
+              <p className="font-inter text-text-gray">Loading map...</p>
             </div>
           </div>
         )}
         
         {/* List View */}
         {viewMode === 'list' && (
-          <div className="p-4 space-y-3 pb-20">
+          <div className="pt-48 px-4 space-y-3 pb-20">
             {places.map((place) => (
-              <div
-            key={place.id}
-            onClick={() => handlePlaceClick(place)}
-            className={`bg-card border rounded-xl p-4 cursor-pointer transition-all ${
-              selectedPlace?.id === place.id ? 'border-primary ring-2 ring-primary/20' : 'border-border'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className="text-3xl">{placeTypeIcons[place.type]}</div>
-              <div className="flex-1">
-                <h3 className="font-semibold">{place.name}</h3>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPin size={12} />
-                  {place.address}
-                </p>
-                {place.open247 && (
-                  <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                    24/7 Open
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            {selectedPlace?.id === place.id && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users size={16} />
-                    <span>{activeCheckins.length} dogs here now</span>
+              <Card
+                key={place.id}
+                onClick={() => handlePlaceClick(place)}
+                className={`cursor-pointer transition-all ${
+                  selectedPlace?.id === place.id ? 'ring-2 ring-lime-2' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">{placeTypeIcons[place.type]}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-poppins font-semibold text-text-dark">{place.name}</h3>
+                      <StatusPill color={placeTypeColors[place.type]}>
+                        {placeTypeLabels[place.type]}
+                      </StatusPill>
+                    </div>
+                    <p className="font-inter text-xs text-text-faint flex items-center gap-1">
+                      <MapPin size={12} />
+                      {place.address}
+                    </p>
+                    {place.open247 && (
+                      <StatusPill color="teal" className="mt-2">
+                        24/7 Open
+                      </StatusPill>
+                    )}
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleCheckInClick()
-                    }}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
-                  >
-                    Check In
-                  </button>
                 </div>
                 
-                {activeCheckins.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {activeCheckins.map((checkin) => (
-                      <div
-                        key={checkin.id}
+                {selectedPlace?.id === place.id && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <StatusPill color="lime">
+                          <Users size={14} />
+                          <span className="ml-1">{activeCheckins.length} psów tu teraz</span>
+                        </StatusPill>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handlePetClick(checkin)
+                          handleCheckInClick()
                         }}
-                        className="flex-shrink-0 w-16 text-center cursor-pointer"
                       >
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-1">
-                          <Dog size={24} className="text-primary" />
-                        </div>
-                        <p className="text-xs font-medium truncate">{checkin.petName}</p>
+                        Check In
+                      </Button>
+                    </div>
+                    
+                    {activeCheckins.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {activeCheckins.map((checkin) => (
+                          <div
+                            key={checkin.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handlePetClick(checkin)
+                            }}
+                            className="flex-shrink-0 w-16 text-center cursor-pointer"
+                          >
+                            <div className="w-16 h-16 rounded-full bg-lime-gradient flex items-center justify-center mb-1">
+                              <Dog size={24} className="text-bg-dark" />
+                            </div>
+                            <p className="font-inter text-xs font-medium text-text-dark truncate">{checkin.petName}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        ))}
+              </Card>
+            ))}
           </div>
         )}
         
@@ -362,76 +442,78 @@ export default function ParkRadarScreen() {
         {showCheckInDialog && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-card rounded-2xl p-6 max-w-sm w-full">
-              <h2 className="text-xl font-bold mb-4">Check In</h2>
+              <h2 className="font-poppins font-bold text-xl text-text-dark mb-4">Check In</h2>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Select Pet</label>
-                <select
-                  value={selectedPet?.id || ''}
-                  onChange={(e) => {
-                    const pet = pets.find(p => p.id === e.target.value)
-                    setSelectedPet(pet)
-                  }}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background"
-                >
-                  <option value="">Choose a pet</option>
-                  {pets.map(pet => (
-                    <option key={pet.id} value={pet.id}>{pet.name}</option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div>
+                  <label className="block font-poppins font-medium text-sm text-text-dark mb-2">Select Pet</label>
+                  <select
+                    value={selectedPet?.id || ''}
+                    onChange={(e) => {
+                      const pet = pets.find(p => p.id === e.target.value)
+                      setSelectedPet(pet)
+                    }}
+                    className="w-full px-4 py-3 border border-border rounded-xl bg-card-2 text-text-dark font-inter focus:ring-2 focus:ring-lime-2 outline-none"
+                  >
+                    <option value="">Choose a pet</option>
+                    {pets.map(pet => (
+                      <option key={pet.id} value={pet.id}>{pet.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block font-poppins font-medium text-sm text-text-dark mb-2">Duration</label>
+                  <select
+                    value={checkinDuration}
+                    onChange={(e) => setCheckinDuration(Number(e.target.value))}
+                    className="w-full px-4 py-3 border border-border rounded-xl bg-card-2 text-text-dark font-inter focus:ring-2 focus:ring-lime-2 outline-none"
+                  >
+                    <option value={1}>1 hour</option>
+                    <option value={2}>2 hours</option>
+                    <option value={3}>3 hours</option>
+                    <option value={4}>4 hours</option>
+                  </select>
+                </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">Duration</label>
-                <select
-                  value={checkinDuration}
-                  onChange={(e) => setCheckinDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background"
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowCheckInDialog(false)
+                    setSelectedPet(null)
+                  }}
+                  disabled={submitting}
+                  className="flex-1"
                 >
-                  <option value={1}>1 hour</option>
-                  <option value={2}>2 hours</option>
-                  <option value={3}>3 hours</option>
-                  <option value={4}>4 hours</option>
-                </select>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleCheckInSubmit}
+                  disabled={!selectedPet || submitting}
+                  className="flex-1"
+                >
+                  {submitting ? 'Checking in...' : 'Check In'}
+                </Button>
               </div>
             </div>
-            
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCheckInDialog(false)
-                  setSelectedPet(null)
-                }}
-                className="flex-1 px-4 py-2 border border-border rounded-lg"
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCheckInSubmit}
-                disabled={!selectedPet || submitting}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium disabled:opacity-50"
-              >
-                {submitting ? 'Checking in...' : 'Check In'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-      
-      {/* Pet Detail Modal */}
-      {showPetDetail && selectedPetDetail && selectedCheckin && (
-        <PetDetailModal
-          pet={selectedPetDetail}
-          checkin={selectedCheckin}
-          onClose={() => {
-            setShowPetDetail(false)
-            setSelectedPetDetail(null)
-            setSelectedCheckin(null)
-          }}
-        />
-      )}
+        )}
+        
+        {/* Pet Detail Modal */}
+        {showPetDetail && selectedPetDetail && selectedCheckin && (
+          <PetDetailModal
+            pet={selectedPetDetail}
+            checkin={selectedCheckin}
+            onClose={() => {
+              setShowPetDetail(false)
+              setSelectedPetDetail(null)
+              setSelectedCheckin(null)
+            }}
+          />
+        )}
       </div>
     </LoadScript>
   )

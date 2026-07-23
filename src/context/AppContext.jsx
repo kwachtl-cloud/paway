@@ -25,7 +25,19 @@ export function AppProvider({ children }) {
     try {
       // Lazy load Firebase auth to avoid blocking app startup
       import('../firebase/firebase').then(({ auth }) => {
-        import('firebase/auth').then(({ onAuthStateChanged }) => {
+        import('firebase/auth').then(({ onAuthStateChanged, getRedirectResult }) => {
+          // Check for redirect result first (mobile Google Sign-In)
+          getRedirectResult(auth).then((result) => {
+            if (result?.user) {
+              console.log('🔄 Google redirect sign-in successful:', result.user.uid)
+              // User profile will be created by loginWithGoogle if needed
+            }
+          }).catch((error) => {
+            if (error.code !== 'auth/popup-closed-by-user') {
+              console.warn('⚠️ Redirect result error:', error)
+            }
+          })
+          
           unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
             if (firebaseUser) {
               console.log('🔑 Firebase user authenticated:', firebaseUser.uid)
@@ -33,6 +45,7 @@ export function AppProvider({ children }) {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'User',
                 email: firebaseUser.email,
+                photoURL: firebaseUser.photoURL || null
               })
               // If on welcome screen, navigate to home
               if (currentScreen === 'welcome') {

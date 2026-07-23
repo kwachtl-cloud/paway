@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { ArrowLeft, Send } from 'lucide-react'
+import { Send, User } from 'lucide-react'
 import {
   subscribeToMessages,
   sendMessage,
@@ -9,6 +9,8 @@ import {
   getUserProfile,
   subscribeToConversation,
 } from '../firebase/services'
+import DarkHeader from '../components/DarkHeader'
+import WhiteCard from '../components/WhiteCard'
 
 export default function ChatScreen() {
   const { t, goBack, navigate, selectedConversationId, selectedProviderId, user } = useApp()
@@ -42,7 +44,7 @@ export default function ChatScreen() {
           const profile = await getUserProfile(selectedProviderId)
           if (profile) {
             otherDetails.name = profile.name
-            otherDetails.image = profile.image
+            otherDetails.image = profile.photoURL
             otherDetails.role = profile.role
           }
         } catch {}
@@ -103,83 +105,108 @@ export default function ChatScreen() {
 
   const otherData = conversation?.participantDetails?.[otherId]
   const otherName = otherData?.name || otherProfile?.name || 'Unknown'
-  const otherImage = otherData?.image || otherProfile?.image || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop'
+  const otherImage = otherData?.image || otherProfile?.photoURL || null
 
   if (!selectedConversationId && !selectedProviderId) {
     return (
-      <div className="flex flex-col h-screen bg-background items-center justify-center px-6">
-        <p className="text-muted-foreground">No conversation selected</p>
-        <button onClick={goBack} className="btn btn-primary mt-4">{t('goBack')}</button>
+      <div className="min-h-screen bg-bg-dark flex flex-col items-center justify-center px-6">
+        <p className="font-inter text-text-gray mb-4">No conversation selected</p>
+        <button 
+          onClick={goBack} 
+          className="px-6 py-3 bg-lime-gradient rounded-xl font-poppins font-semibold text-bg-dark active:scale-95 transition-transform"
+        >
+          {t('goBack')}
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <div className="px-6 pt-8 pb-4 bg-background/95 backdrop-blur flex items-center gap-4">
-        <button onClick={goBack} className="w-11 h-11 bg-card rounded-full flex items-center justify-center active:scale-95 transition-transform shadow-md">
-          <ArrowLeft size={20} className="text-foreground" />
-        </button>
-        <img src={otherImage} alt={otherName} className="w-12 h-12 rounded-full object-cover" />
-        <div className="flex-1">
-          <p className="text-title text-foreground">{otherName}</p>
-          <p className="text-caption text-primary">{t('online')}</p>
+    <div className="min-h-screen bg-bg-dark pb-24 flex flex-col">
+      <DarkHeader 
+        title="Chat"
+        onBack={goBack}
+      >
+        <div className="px-4 pb-4 pt-2 flex items-center gap-3">
+          {/* Other user avatar */}
+          {otherImage ? (
+            <img 
+              src={otherImage} 
+              alt={otherName} 
+              className="w-14 h-14 rounded-full object-cover border-2 border-card-2/20" 
+            />
+          ) : (
+            <div className="w-14 h-14 bg-gradient-to-br from-lime-1 to-lime-2 rounded-full flex items-center justify-center">
+              <User size={24} className="text-bg-dark" />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className="font-poppins font-semibold text-card">{otherName}</p>
+            <p className="font-inter text-xs text-text-gray">{t('online')}</p>
+          </div>
         </div>
-      </div>
+      </DarkHeader>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">{t('loading')}</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">No messages yet. Say hello!</p>
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const isOwn = msg.senderId === user?.uid
-            return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] px-4 py-3 rounded-[var(--radius-md)] shadow-sm break-words ${
-                  isOwn
-                    ? 'bg-primary text-primary-foreground rounded-br-md'
-                    : 'bg-card text-foreground rounded-bl-md border border-border'
-                }`}>
-                  <p className="text-sm leading-relaxed break-words">{msg.text}</p>
-                  <p className={`text-[10px] mt-1 ${isOwn ? 'opacity-70' : 'text-muted-foreground'}`}>
-                    {msg.timestamp?.seconds
-                      ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                      : ''}
-                  </p>
+      <WhiteCard className="flex-1 flex flex-col">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="font-inter text-text-gray">{t('loading')}</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="font-inter text-text-gray">No messages yet. Say hello!</p>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isOwn = msg.senderId === user?.uid
+              return (
+                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[75%] px-4 py-3 rounded-2xl shadow-sm ${
+                    isOwn
+                      ? 'bg-lime-gradient rounded-tr-sm'
+                      : 'bg-card-2 rounded-tl-sm'
+                  }`}>
+                    <p className={`font-inter text-sm leading-relaxed break-words ${
+                      isOwn ? 'text-lime-dark' : 'text-text-dark'
+                    }`}>
+                      {msg.text}
+                    </p>
+                    <p className={`font-inter text-[10px] mt-1 ${
+                      isOwn ? 'text-lime-dark/70' : 'text-text-faint'
+                    }`}>
+                      {msg.timestamp?.seconds
+                        ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : ''}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+              )
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input */}
-      <div className="px-6 py-5 bg-background/95 backdrop-blur flex items-center gap-3">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder={t('typeMessage')}
-          className="input flex-1"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!text.trim()}
-          className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50"
-        >
-          <Send size={18} />
-        </button>
-      </div>
+        {/* Input Bar */}
+        <div className="px-4 py-4 border-t border-border flex items-center gap-3">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder={t('typeMessage') || 'Type a message...'}
+            className="flex-1 px-4 py-3 bg-card-2 text-text-dark placeholder-text-faint rounded-xl border-0 focus:ring-2 focus:ring-lime-2 outline-none font-inter text-sm"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!text.trim()}
+            className="w-12 h-12 bg-lime-gradient rounded-full flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50 shadow-md"
+          >
+            <Send size={18} className="text-bg-dark" />
+          </button>
+        </div>
+      </WhiteCard>
     </div>
   )
 }
