@@ -144,25 +144,41 @@ export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
   
   try {
-    // Use popup for ALL platforms - redirect doesn't work on Capacitor native
-    // Popup works through inAppBrowser on mobile
+    console.log('🔐 Starting Google Sign-In...')
+    
+    // Use popup for ALL platforms - most reliable method
     const result = await signInWithPopup(auth, provider)
     
+    console.log('✅ Google Sign-In successful:', result.user.uid)
     const user = result.user
     
     // Check if user profile exists, if not create it
     const existingProfile = await getUserProfile(user.uid)
     if (!existingProfile) {
+      console.log('📝 Creating new user profile...')
       await createUserProfile(user.uid, {
         email: user.email,
         name: user.displayName || 'User',
         photoURL: user.photoURL,
       })
+      console.log('✅ User profile created')
     }
     
     return user
   } catch (error) {
-    console.error('Google sign-in error:', error)
+    console.error('❌ Google sign-in error:', error)
+    
+    // User-friendly error messages
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Login cancelled')
+    } else if (error.code === 'auth/popup-blocked') {
+      throw new Error('Popup blocked by browser. Please enable popups and try again.')
+    } else if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('This domain is not authorized. Please contact support.')
+    } else if (error.message?.includes('missing initial state')) {
+      throw new Error('Session error. Please try again or use email/password.')
+    }
+    
     throw error
   }
 }
@@ -607,18 +623,40 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
 }
 
 export async function uploadImage(file, path) {
+  // On mobile, skip Firebase Storage and go straight to base64
+  // This is instant and reliable
+  if (isNativePlatform()) {
+    console.log('📱 Mobile: Using base64 storage (instant)')
+    try {
+      const compressed = await compressImage(file, 600, 0.5)
+      console.log('✅ Image compressed to base64:', (compressed.length / 1024).toFixed(1) + ' KB')
+      return compressed
+    } catch (compressionError) {
+      console.error('❌ Image compression failed:', compressionError)
+      throw compressionError
+    }
+  }
+  
+  // On web, try Firebase Storage with timeout
   try {
     console.log('🔄 Uploading image to Firebase Storage:', path)
     const storageRef = ref(storage, path)
-    await uploadBytes(storageRef, file)
+    
+    // Upload with 10 second timeout
+    const uploadPromise = uploadBytes(storageRef, file)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Upload timeout')), 10000)
+    )
+    
+    await Promise.race([uploadPromise, timeoutPromise])
     const url = await getDownloadURL(storageRef)
     console.log('✅ Firebase upload success:', url.substring(0, 50) + '...')
     return url
   } catch (error) {
     console.warn('⚠️ Firebase Storage unavailable, compressing and using base64:', error.message)
-    // Fallback to compressed base64 data URL for local dev
+    // Fallback to compressed base64 data URL
     try {
-      const compressed = await compressImage(file, 800, 0.7)
+      const compressed = await compressImage(file, 600, 0.5)
       console.log('✅ Image compressed to base64:', (compressed.length / 1024).toFixed(1) + ' KB')
       return compressed
     } catch (compressionError) {

@@ -76,10 +76,9 @@ export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5
         const base64 = `data:image/jpeg;base64,${image.base64String}`
         const compressed = await compressImage(base64)
         
-        // Convert base64 to File object so it works with uploadPetPhoto
-        const file = base64ToFile(compressed, `pet_photo_${Date.now()}.jpg`)
-        
-        onPhotosChange([...photos, { preview: compressed, file }])
+        // On mobile, save directly as base64 URL (no File object needed)
+        // This avoids double compression in uploadImage
+        onPhotosChange([...photos, { preview: compressed, url: compressed }])
       }
     } catch (error) {
       if (error.message !== 'User cancelled photos app') {
