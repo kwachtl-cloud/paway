@@ -504,6 +504,347 @@ export async function deletePet(petId) {
   }
 }
 
+// === PET CO-OWNERSHIP (FAMILY SHARING) ===
+/**
+ * Generate a shareable invite code for a pet
+ * @param {string} petId - Pet ID
+ * @param {string} ownerUid - Owner user ID
+ * @returns {Promise<string>} - 6-digit invite code
+ */
+export async function generatePetInviteCode(petId, ownerUid) {
+  const code = Math.random().toString(36).substr(2, 6).toUpperCase()
+  const inviteData = {
+    code,
+    petId,
+    ownerUid,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+    used: false
+  }
+  
+  try {
+    await setDoc(doc(db, 'pet_invites', code), {
+      ...inviteData,
+      createdAt: serverTimestamp()
+    })
+    console.log('✅ Pet invite code generated:', code)
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    const invites = JSON.parse(localStorage.getItem('paway_pet_invites') || '[]')
+    invites.push(inviteData)
+    localStorage.setItem('paway_pet_invites', JSON.stringify(invites))
+  }
+  
+  return code
+}
+
+/**
+ * Claim a pet using invite code
+ * @param {string} code - 6-digit invite code
+ * @param {string} userId - User ID claiming the pet
+ * @returns {Promise<object>} - { success: boolean, petId: string, error?: string }
+ */
+export async function claimPetInviteCode(code, userId) {
+  try {
+    const inviteSnap = await getDoc(doc(db, 'pet_invites', code.toUpperCase()))
+    
+    if (!inviteSnap.exists()) {
+      // Try localStorage
+      const invites = JSON.parse(localStorage.getItem('paway_pet_invites') || '[]')
+      const invite = invites.find(i => i.code === code.toUpperCase() && !i.used)
+      
+      if (!invite) {
+        return { success: false, error: 'Invalid or expired code' }
+      }
+      
+      // Check expiration
+      if (new Date(invite.expiresAt) < new Date()) {
+        return { success: false, error: 'Code expired' }
+      }
+      
+      // Add user as co-owner
+      await addCoOwnerToPet(invite.petId, userId)
+      
+      // Mark invite as used
+      const updated = invites.map(i => 
+        i.code === code.toUpperCase() ? { ...i, used: true, usedBy: userId, usedAt: new Date().toISOString() } : i
+      )
+      localStorage.setItem('paway_pet_invites', JSON.stringify(updated))
+      
+      return { success: true, petId: invite.petId }
+    }
+    
+    const inviteData = inviteSnap.data()
+    
+    // Check if already used
+    if (inviteData.used) {
+      return { success: false, error: 'Code already used' }
+    }
+    
+    // Check expiration
+    const expiresAt = inviteData.expiresAt?.toDate?.() || new Date(inviteData.expiresAt)
+    if (expiresAt < new Date()) {
+      return { success: false, error: 'Code expired' }
+    }
+    
+    // Add user as co-owner
+    await addCoOwnerToPet(inviteData.petId, userId)
+    
+    // Mark invite as used
+    await updateDoc(doc(db, 'pet_invites', code.toUpperCase()), {
+      used: true,
+      usedBy: userId,
+      usedAt: serverTimestamp()
+    })
+    
+    console.log('✅ Pet claimed successfully:', inviteData.petId)
+    return { success: true, petId: inviteData.petId }
+  } catch (error) {
+    console.error('❌ Error claiming pet invite:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Add a co-owner to a pet
+ * @param {string} petId - Pet ID
+ * @param {string} userId - User ID to add as co-owner
+ * @returns {Promise<void>}
+ */
+export async function addCoOwnerToPet(petId, userId) {
+  try {
+    const petRef = doc(db, 'pets', petId)
+    const petSnap = await getDoc(petRef)
+    
+    if (petSnap.exists()) {
+      const currentCoOwners = petSnap.data().coOwners || []
+      if (!currentCoOwners.includes(userId)) {
+        await updateDoc(petRef, {
+          coOwners: [...currentCoOwners, userId]
+        })
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, updating localStorage')
+    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    const updated = allPets.map(p => {
+      if (p.id === petId) {
+        const coOwners = p.coOwners || []
+        if (!coOwners.includes(userId)) {
+          return { ...p, coOwners: [...coOwners, userId] }
+        }
+      }
+      return p
+    })
+    localStorage.setItem('paway_pets', JSON.stringify(updated))
+  }
+}
+
+/**
+ * Remove a co-owner from a pet
+ * @param {string} petId - Pet ID
+ * @param {string} userId - User ID to remove
+ * @returns {Promise<void>}
+ */
+export async function removeCoOwnerFromPet(petId, userId) {
+  try {
+    const petRef = doc(db, 'pets', petId)
+    const petSnap = await getDoc(petRef)
+    
+    if (petSnap.exists()) {
+      const currentCoOwners = petSnap.data().coOwners || []
+      await updateDoc(petRef, {
+        coOwners: currentCoOwners.filter(id => id !== userId)
+      })
+    }
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, updating localStorage')
+    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+    const updated = allPets.map(p => {
+      if (p.id === petId) {
+        const coOwners = p.coOwners || []
+        return { ...p, coOwners: coOwners.filter(id => id !== userId) }
+      }
+      return p
+    })
+    localStorage.setItem('paway_pets', JSON.stringify(updated))
+  }
+}
+
+/**
+ * Get all pets for a user (owned + co-owned)
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} - Array of pets
+ */
+export async function getAllUserPets(userId) {
+  if (!userId) return []
+  
+  const ownedPets = await getPets(userId)
+  
+  // Get co-owned pets from localStorage
+  const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+  const coOwnedPets = allPets.filter(p => 
+    p.coOwners && p.coOwners.includes(userId) && p.owner_uid !== userId
+  )
+  
+  // Combine and deduplicate
+  const allUserPets = [...ownedPets, ...coOwnedPets]
+  const uniquePets = Array.from(new Map(allUserPets.map(p => [p.id, p])).values())
+  
+  return uniquePets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+}
+
+// === WALK STREAKS (GAMIFICATION) ===
+/**
+ * Record a walk session and update streak
+ * @param {string} userId - User ID
+ * @param {object} walkData - Walk data (duration, distance, etc.)
+ * @returns {Promise<object>} - Updated streak stats
+ */
+export async function recordWalkSession(userId, walkData = {}) {
+  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  
+  try {
+    const userRef = doc(db, 'users', userId)
+    const userSnap = await getDoc(userRef)
+    
+    if (!userSnap.exists()) {
+      console.warn('User not found:', userId)
+      return { currentStreak: 0, totalWalks: 0 }
+    }
+    
+    const userData = userSnap.data()
+    const lastWalkDate = userData.lastWalkDate || ''
+    const currentStreak = userData.currentStreak || 0
+    const totalWalks = userData.totalWalks || 0
+    
+    // Check if already walked today
+    if (lastWalkDate === today) {
+      console.log('Already walked today, streak unchanged')
+      return { currentStreak, totalWalks, lastWalkDate }
+    }
+    
+    // Calculate new streak
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    let newStreak = currentStreak
+    
+    if (lastWalkDate === yesterday) {
+      // Consecutive day
+      newStreak = currentStreak + 1
+    } else if (lastWalkDate < yesterday) {
+      // Streak broken, restart
+      newStreak = 1
+    } else {
+      // First walk ever
+      newStreak = 1
+    }
+    
+    // Update user document
+    await updateDoc(userRef, {
+      currentStreak: newStreak,
+      lastWalkDate: today,
+      totalWalks: totalWalks + 1,
+      lastWalkTime: new Date().toISOString()
+    })
+    
+    // Save walk session
+    await addDoc(collection(db, 'walk_sessions'), {
+      userId,
+      date: today,
+      ...walkData,
+      createdAt: serverTimestamp()
+    })
+    
+    console.log('✅ Walk session recorded, streak:', newStreak)
+    return { currentStreak: newStreak, totalWalks: totalWalks + 1, lastWalkDate: today }
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    
+    // localStorage fallback
+    const stats = JSON.parse(localStorage.getItem(`paway_walk_stats_${userId}`) || '{}')
+    const lastWalkDate = stats.lastWalkDate || ''
+    const currentStreak = stats.currentStreak || 0
+    const totalWalks = stats.totalWalks || 0
+    
+    if (lastWalkDate === today) {
+      return { currentStreak, totalWalks, lastWalkDate }
+    }
+    
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    let newStreak = currentStreak
+    
+    if (lastWalkDate === yesterday) {
+      newStreak = currentStreak + 1
+    } else if (lastWalkDate < yesterday) {
+      newStreak = 1
+    } else {
+      newStreak = 1
+    }
+    
+    const newStats = {
+      currentStreak: newStreak,
+      totalWalks: totalWalks + 1,
+      lastWalkDate: today,
+      lastWalkTime: new Date().toISOString()
+    }
+    
+    localStorage.setItem(`paway_walk_stats_${userId}`, JSON.stringify(newStats))
+    return newStats
+  }
+}
+
+/**
+ * Get user's walk streak statistics
+ * @param {string} userId - User ID
+ * @returns {Promise<object>} - Streak stats
+ */
+export async function getUserWalkStats(userId) {
+  try {
+    const userRef = doc(db, 'users', userId)
+    const userSnap = await getDoc(userRef)
+    
+    if (!userSnap.exists()) {
+      return { currentStreak: 0, totalWalks: 0, lastWalkDate: null }
+    }
+    
+    const data = userSnap.data()
+    return {
+      currentStreak: data.currentStreak || 0,
+      totalWalks: data.totalWalks || 0,
+      lastWalkDate: data.lastWalkDate || null,
+      lastWalkTime: data.lastWalkTime || null
+    }
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    const stats = JSON.parse(localStorage.getItem(`paway_walk_stats_${userId}`) || '{}')
+    return {
+      currentStreak: stats.currentStreak || 0,
+      totalWalks: stats.totalWalks || 0,
+      lastWalkDate: stats.lastWalkDate || null,
+      lastWalkTime: stats.lastWalkTime || null
+    }
+  }
+}
+
+/**
+ * Reset user's walk streak (for testing or manual reset)
+ * @param {string} userId - User ID
+ * @returns {Promise<void>}
+ */
+export async function resetWalkStreak(userId) {
+  try {
+    const userRef = doc(db, 'users', userId)
+    await updateDoc(userRef, {
+      currentStreak: 0,
+      lastWalkDate: null
+    })
+    console.log('✅ Walk streak reset')
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    localStorage.removeItem(`paway_walk_stats_${userId}`)
+  }
+}
+
 // === SERVICES / PROVIDERS ===
 export async function getServices(type) {
   const q = query(collection(db, 'services'), where('type', '==', type))
@@ -989,6 +1330,135 @@ export async function markAlertAsViewed(alertId, userId) {
   }
   
   return true
+}
+
+// === HAZARDS (HAZARD RADAR) ===
+/**
+ * Report a new hazard (bait, glass, wildlife, reactive dog, etc.)
+ * @param {object} data - Hazard data
+ * @returns {Promise<string>} - Hazard ID
+ */
+export async function reportHazard({ type, lat, lng, description, userId, userName }) {
+  const hazardId = `hazard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const hash = geohashForLocation([lat, lng])
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // +24h
+  
+  const hazard = {
+    id: hazardId,
+    type, // 'bait' | 'glass' | 'wildlife' | 'reactive_dog' | 'other'
+    location: { lat, lng, geohash: hash },
+    description: description || '',
+    reportedBy: userId,
+    reporterName: userName || 'Anonymous',
+    createdAt: new Date().toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    status: 'active'
+  }
+  
+  try {
+    // Try Firebase first
+    await setDoc(doc(db, 'hazards', hazardId), {
+      ...hazard,
+      createdAt: serverTimestamp(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    })
+    console.log('✅ Hazard saved to Firestore:', hazardId)
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    const existing = JSON.parse(localStorage.getItem('paway_hazards') || '[]')
+    existing.push(hazard)
+    localStorage.setItem('paway_hazards', JSON.stringify(existing))
+  }
+  
+  return hazardId
+}
+
+/**
+ * Get active hazards near a location
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @param {number} radiusKm - Radius in kilometers
+ * @returns {Promise<Array>} - Array of hazards
+ */
+export async function getActiveHazards(lat, lng, radiusKm = 5) {
+  const now = new Date()
+  
+  try {
+    const radiusInM = radiusKm * 1000
+    const bounds = geohashQueryBounds([lat, lng], radiusInM)
+    
+    const promises = bounds.map((b) => {
+      const q = query(
+        collection(db, 'hazards'),
+        where('status', '==', 'active'),
+        orderBy('location.geohash'),
+        startAt(b[0]),
+        endAt(b[1])
+      )
+      return getDocs(q)
+    })
+    
+    const snapshots = await Promise.all(promises)
+    const matchingHazards = []
+    
+    for (const snap of snapshots) {
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data()
+        const loc = data.location
+        
+        if (!loc) continue
+        
+        // Check if expired
+        const expiresAt = data.expiresAt?.toDate?.() || new Date(data.expiresAt)
+        if (expiresAt < now) continue
+        
+        // Check distance
+        const distanceInKm = distanceBetween([loc.lat, loc.lng], [lat, lng])
+        if (distanceInKm <= radiusKm) {
+          matchingHazards.push({ 
+            id: docSnap.id, 
+            ...data,
+            distance: distanceInKm
+          })
+        }
+      }
+    }
+    
+    return matchingHazards.sort((a, b) => a.distance - b.distance)
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, using localStorage')
+    const stored = JSON.parse(localStorage.getItem('paway_hazards') || '[]')
+    return stored
+      .filter(h => h.status === 'active' && new Date(h.expiresAt) > now)
+      .map(h => ({
+        ...h,
+        distance: distanceBetween([h.location.lat, h.location.lng], [lat, lng])
+      }))
+      .filter(h => h.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+  }
+}
+
+/**
+ * Mark a hazard as resolved
+ * @param {string} hazardId - Hazard ID
+ * @returns {Promise<void>}
+ */
+export async function resolveHazard(hazardId) {
+  try {
+    await updateDoc(doc(db, 'hazards', hazardId), {
+      status: 'resolved',
+      resolvedAt: serverTimestamp()
+    })
+    console.log('✅ Hazard resolved:', hazardId)
+  } catch (error) {
+    console.warn('⚠️ Firebase unavailable, updating localStorage')
+    const stored = JSON.parse(localStorage.getItem('paway_hazards') || '[]')
+    const updated = stored.map(h => 
+      h.id === hazardId ? { ...h, status: 'resolved', resolvedAt: new Date().toISOString() } : h
+    )
+    localStorage.setItem('paway_hazards', JSON.stringify(updated))
+  }
 }
 
 // === CONVERSATIONS ===

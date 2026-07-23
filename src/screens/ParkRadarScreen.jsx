@@ -8,10 +8,12 @@ import {
   Map as MapIcon,
   Locate,
   Plus,
-  Minus
+  Minus,
+  AlertTriangle,
+  X
 } from 'lucide-react'
 import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api'
-import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById } from '../firebase/services'
+import { getPetPlaces, getActiveCheckinsForPlace, checkInToPark, getPets, getPetById, reportHazard, getActiveHazards, resolveHazard } from '../firebase/services'
 import PetDetailModal from '../components/PetDetailModal'
 import { getCurrentPosition } from '../utils/geolocation'
 import DarkHeader from '../components/DarkHeader'
@@ -42,6 +44,22 @@ const placeTypeColors = {
   pet_store: 'blue'
 }
 
+const hazardTypeIcons = {
+  bait: '🍖',
+  glass: '🍾',
+  wildlife: '🐗',
+  reactive_dog: '🐕',
+  other: '⚠️'
+}
+
+const hazardTypeLabels = {
+  bait: 'Poison Bait',
+  glass: 'Broken Glass',
+  wildlife: 'Wildlife',
+  reactive_dog: 'Reactive Dog',
+  other: 'Other Hazard'
+}
+
 export default function ParkRadarScreen() {
   const { t, user } = useApp()
   
@@ -65,6 +83,15 @@ export default function ParkRadarScreen() {
   const [selectedPetDetail, setSelectedPetDetail] = useState(null)
   const [selectedCheckin, setSelectedCheckin] = useState(null)
   const [showPetDetail, setShowPetDetail] = useState(false)
+  
+  // Hazard Radar state
+  const [hazards, setHazards] = useState([])
+  const [showHazards, setShowHazards] = useState(true)
+  const [showHazardModal, setShowHazardModal] = useState(false)
+  const [hazardType, setHazardType] = useState('bait')
+  const [hazardDescription, setHazardDescription] = useState('')
+  const [reportingHazard, setReportingHazard] = useState(false)
+  const [selectedHazard, setSelectedHazard] = useState(null)
   
   // Get user location
   useEffect(() => {
@@ -103,6 +130,30 @@ export default function ParkRadarScreen() {
       }
     }
     loadPlaces()
+  }, [currentLocation])
+  
+  // Load hazards
+  useEffect(() => {
+    if (!currentLocation) return
+    
+    const loadHazards = async () => {
+      try {
+        const activeHazards = await getActiveHazards(
+          currentLocation.lat,
+          currentLocation.lng,
+          10 // 10km radius
+        )
+        console.log('⚠️ Loaded', activeHazards.length, 'hazards')
+        setHazards(activeHazards)
+      } catch (error) {
+        console.error('Error loading hazards:', error)
+      }
+    }
+    
+    loadHazards()
+    const interval = setInterval(loadHazards, 60000) // Refresh every 60s
+    
+    return () => clearInterval(interval)
   }, [currentLocation])
   
   // Load pets for check-in
@@ -206,6 +257,61 @@ export default function ParkRadarScreen() {
     }
   }
   
+  const handleReportHazard = async () => {
+    if (!user || !currentLocation) return
+    
+    setReportingHazard(true)
+    try {
+      await reportHazard({
+        type: hazardType,
+        lat: currentLocation.lat,
+        lng: currentLocation.lng,
+        description: hazardDescription,
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous'
+      })
+      
+      alert('Hazard reported successfully!')
+      setShowHazardModal(false)
+      setHazardDescription('')
+      setHazardType('bait')
+      
+      // Reload hazards
+      const activeHazards = await getActiveHazards(
+        currentLocation.lat,
+        currentLocation.lng,
+        10
+      )
+      setHazards(activeHazards)
+    } catch (error) {
+      console.error('Error reporting hazard:', error)
+      alert('Failed to report hazard')
+    } finally {
+      setReportingHazard(false)
+    }
+  }
+  
+  const handleResolveHazard = async (hazardId) => {
+    try {
+      await resolveHazard(hazardId)
+      alert('Hazard marked as resolved!')
+      
+      // Reload hazards
+      if (currentLocation) {
+        const activeHazards = await getActiveHazards(
+          currentLocation.lat,
+          currentLocation.lng,
+          10
+        )
+        setHazards(activeHazards)
+      }
+      setSelectedHazard(null)
+    } catch (error) {
+      console.error('Error resolving hazard:', error)
+      alert('Failed to resolve hazard')
+    }
+  }
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-dark flex items-center justify-center">
@@ -302,6 +408,18 @@ export default function ParkRadarScreen() {
                 />
               ))}
               
+              {/* Hazard markers */}
+              {showHazards && hazards.map((hazard) => (
+                <Marker
+                  key={hazard.id}
+                  position={{ lat: hazard.location.lat, lng: hazard.location.lng }}
+                  onClick={() => setSelectedHazard(hazard)}
+                  icon={{
+                    url: `data:image/svg+xml;utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="18" fill="%23FF7A6B" opacity="0.9"/><text x="20" y="30" font-size="24" text-anchor="middle">${hazardTypeIcons[hazard.type]}</text></svg>`,
+                  }}
+                />
+              ))}
+              
               {/* Info Window for selected place */}
               {selectedPlace && (
                 <InfoWindow
@@ -319,6 +437,32 @@ export default function ParkRadarScreen() {
                       className="w-full px-3 py-2 bg-lime-gradient text-bg-dark rounded-lg font-poppins font-semibold text-xs"
                     >
                       Check In
+                    </button>
+                  </div>
+                </InfoWindow>
+              )}
+              
+              {/* Info Window for selected hazard */}
+              {selectedHazard && (
+                <InfoWindow
+                  position={{ lat: selectedHazard.location.lat, lng: selectedHazard.location.lng }}
+                  onCloseClick={() => setSelectedHazard(null)}
+                >
+                  <div className="p-2 max-w-xs">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl">{hazardTypeIcons[selectedHazard.type]}</span>
+                      <h3 className="font-poppins font-semibold text-sm text-coral">{hazardTypeLabels[selectedHazard.type]}</h3>
+                    </div>
+                    <p className="font-inter text-xs text-text-faint mb-2">{selectedHazard.description || 'No description'}</p>
+                    <p className="font-inter text-xs text-text-gray mb-2">Reported by: {selectedHazard.reporterName}</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleResolveHazard(selectedHazard.id)
+                      }}
+                      className="w-full px-3 py-2 bg-lime-gradient text-bg-dark rounded-lg font-poppins font-semibold text-xs"
+                    >
+                      Już bezpiecznie ✅
                     </button>
                   </div>
                 </InfoWindow>
@@ -346,6 +490,31 @@ export default function ParkRadarScreen() {
                 <Minus size={20} className="text-text-dark" />
               </button>
             </div>
+            
+            {/* Report Hazard Floating Button */}
+            <div className="absolute left-4 bottom-32 z-20">
+              <button
+                onClick={() => setShowHazardModal(true)}
+                className="bg-lime-gradient text-bg-dark px-4 py-3 rounded-full flex items-center gap-2 shadow-lg active:scale-95 transition-transform font-poppins font-semibold"
+              >
+                <AlertTriangle size={20} />
+                Zgłoś zagrożenie
+              </button>
+            </div>
+            
+            {/* Hazard Filter Toggle */}
+            <div className="absolute top-52 right-4 z-20">
+              <button
+                onClick={() => setShowHazards(!showHazards)}
+                className={`px-4 py-2 rounded-full shadow-md active:scale-95 transition-all font-poppins font-semibold text-sm ${
+                  showHazards 
+                    ? 'bg-coral text-white' 
+                    : 'bg-card text-text-gray'
+                }`}
+              >
+                ⚠️ Ostrzeżenia ({hazards.length})
+              </button>
+            </div>
           </div>
         )}
         
@@ -362,6 +531,63 @@ export default function ParkRadarScreen() {
         {/* List View */}
         {viewMode === 'list' && (
           <div className="pt-48 px-4 space-y-3 pb-20">
+            {/* Hazard Filter Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-poppins font-semibold text-text-dark">Nearby Places</h3>
+              <button
+                onClick={() => setShowHazards(!showHazards)}
+                className={`px-4 py-2 rounded-full shadow-md active:scale-95 transition-all font-poppins font-semibold text-sm ${
+                  showHazards 
+                    ? 'bg-coral text-white' 
+                    : 'bg-card-2 text-text-gray'
+                }`}
+              >
+                ⚠️ Ostrzeżenia ({hazards.length})
+              </button>
+            </div>
+            
+            {/* Report Hazard Button */}
+            <button
+              onClick={() => setShowHazardModal(true)}
+              className="w-full bg-lime-gradient text-bg-dark px-4 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform font-poppins font-semibold mb-4"
+            >
+              <AlertTriangle size={20} />
+              Zgłoś zagrożenie w okolicy
+            </button>
+            
+            {/* Hazards List */}
+            {showHazards && hazards.length > 0 && (
+              <div className="space-y-3 mb-4">
+                <h3 className="font-poppins font-semibold text-coral">⚠️ Aktywne zagrożenia</h3>
+                {hazards.map((hazard) => (
+                  <Card key={hazard.id} className="border-l-4 border-coral">
+                    <div className="flex items-start gap-3">
+                      <div className="text-3xl">{hazardTypeIcons[hazard.type]}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-poppins font-semibold text-text-dark">{hazardTypeLabels[hazard.type]}</h3>
+                          <StatusPill color="coral">
+                            {hazard.distance?.toFixed(1) || '0'} km
+                          </StatusPill>
+                        </div>
+                        <p className="font-inter text-sm text-text-dark mb-1">{hazard.description || 'No description'}</p>
+                        <p className="font-inter text-xs text-text-faint">Zgłoszone przez: {hazard.reporterName}</p>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleResolveHazard(hazard.id)}
+                          className="mt-2"
+                        >
+                          Już bezpiecznie ✅
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+            
+            {/* Places List */}
             {places.map((place) => (
               <Card
                 key={place.id}
@@ -513,6 +739,83 @@ export default function ParkRadarScreen() {
               setSelectedCheckin(null)
             }}
           />
+        )}
+        
+        {/* Hazard Report Modal */}
+        {showHazardModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-card rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-poppins font-bold text-xl text-text-dark">Zgłoś zagrożenie</h2>
+                <button
+                  onClick={() => setShowHazardModal(false)}
+                  className="text-text-gray hover:text-text-dark transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block font-poppins font-medium text-sm text-text-dark mb-2">Typ zagrożenia</label>
+                  <select
+                    value={hazardType}
+                    onChange={(e) => setHazardType(e.target.value)}
+                    className="w-full px-4 py-3 border border-border rounded-xl bg-card-2 text-text-dark font-inter focus:ring-2 focus:ring-lime-2 outline-none"
+                  >
+                    <option value="bait">🍖 Trucizna / Przynęta</option>
+                    <option value="glass">🍾 Szkło / Ostre przedmioty</option>
+                    <option value="wildlife">🐗 Dziki / Dzikie zwierzęta</option>
+                    <option value="reactive_dog">🐕 Reaktywny pies</option>
+                    <option value="other">⚠️ Inne zagrożenie</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block font-poppins font-medium text-sm text-text-dark mb-2">Opis (opcjonalnie)</label>
+                  <textarea
+                    value={hazardDescription}
+                    onChange={(e) => setHazardDescription(e.target.value)}
+                    placeholder="Dodaj szczegóły..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-border rounded-xl bg-card-2 text-text-dark font-inter focus:ring-2 focus:ring-lime-2 outline-none resize-none"
+                  />
+                </div>
+                
+                <div className="bg-card-2 rounded-xl p-3">
+                  <p className="font-inter text-xs text-text-faint">
+                    📍 Zagrożenie zostanie zgłoszone w Twojej aktualnej lokalizacji
+                  </p>
+                  <p className="font-inter text-xs text-text-faint mt-1">
+                    ⏱️ Automatycznie wygaśnie po 24 godzinach
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowHazardModal(false)
+                    setHazardDescription('')
+                    setHazardType('bait')
+                  }}
+                  disabled={reportingHazard}
+                  className="flex-1"
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleReportHazard}
+                  disabled={reportingHazard}
+                  className="flex-1"
+                >
+                  {reportingHazard ? 'Zgłaszam...' : 'Zgłoś zagrożenie'}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </LoadScript>

@@ -12,9 +12,13 @@ import {
   Edit2,
   Trash2,
   ChevronDown,
-  X
+  X,
+  Users,
+  UserPlus,
+  Copy,
+  Check
 } from 'lucide-react'
-import { getPets, addPet, updatePet, deletePet, uploadPetPhoto } from '../firebase/services'
+import { getPets, addPet, updatePet, deletePet, uploadPetPhoto, generatePetInviteCode, claimPetInviteCode, getAllUserPets } from '../firebase/services'
 import PhotoUpload from '../components/PhotoUpload'
 import QRCode from 'qrcode'
 import DarkHeader from '../components/DarkHeader'
@@ -22,6 +26,7 @@ import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
 import StatusPill from '../components/StatusPill'
 import Card from '../components/Card'
+import VetPassModal from '../components/VetPassModal'
 
 export default function PetPassportScreen() {
   const { t, goBack, user } = useApp()
@@ -32,6 +37,18 @@ export default function PetPassportScreen() {
   const [selectedPetIndex, setSelectedPetIndex] = useState(0)
   const [saving, setSaving] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
+  
+  // Co-ownership state
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
+  const [generatingInvite, setGeneratingInvite] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [claimCode, setClaimCode] = useState('')
+  const [claimingCode, setClaimingCode] = useState(false)
+  const [qrCodeInvite, setQrCodeInvite] = useState('')
+  
+  // Vet Pass state
+  const [showVetPass, setShowVetPass] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -60,12 +77,69 @@ export default function PetPassportScreen() {
     
     try {
       setLoading(true)
-      const userPets = await getPets(user.uid)
+      // Use getAllUserPets to include co-owned pets
+      const userPets = await getAllUserPets(user.uid)
       setPets(userPets)
     } catch (error) {
       console.error('Error loading pets:', error)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const handleGenerateInvite = async () => {
+    if (!selectedPet || !user?.uid) return
+    
+    setGeneratingInvite(true)
+    try {
+      const code = await generatePetInviteCode(selectedPet.id, user.uid)
+      setInviteCode(code)
+      
+      // Generate QR code for invite
+      const qrData = await QRCode.toDataURL(`paway://claim/${code}`, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#0D1712',
+          light: '#FFFFFF'
+        }
+      })
+      setQrCodeInvite(qrData)
+      
+      setShowInviteModal(true)
+    } catch (error) {
+      console.error('Error generating invite:', error)
+      alert('Failed to generate invite code')
+    } finally {
+      setGeneratingInvite(false)
+    }
+  }
+  
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(inviteCode)
+    setCopiedCode(true)
+    setTimeout(() => setCopiedCode(false), 2000)
+  }
+  
+  const handleClaimPet = async () => {
+    if (!claimCode.trim() || !user?.uid) return
+    
+    setClaimingCode(true)
+    try {
+      const result = await claimPetInviteCode(claimCode.trim(), user.uid)
+      
+      if (result.success) {
+        alert('Pet successfully added to your account!')
+        setClaimCode('')
+        await loadPets()
+      } else {
+        alert(result.error || 'Failed to claim pet')
+      }
+    } catch (error) {
+      console.error('Error claiming pet:', error)
+      alert('Failed to claim pet')
+    } finally {
+      setClaimingCode(false)
     }
   }
   
@@ -664,21 +738,172 @@ export default function PetPassportScreen() {
               <h3 className="font-poppins font-semibold text-base text-text-dark mb-3">
                 Digital ID
               </h3>
-              <Button
-                variant="secondary"
-                onClick={() => generateQRCode(selectedPet)}
-                className="w-full flex items-center justify-center gap-2"
-              >
-                <QrCode size={18} />
-                Generate QR Code
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => generateQRCode(selectedPet)}
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  <QrCode size={18} />
+                  QR Code
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setShowVetPass(true)}
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  📄 Vet Pass
+                </Button>
+              </div>
               <p className="font-inter text-xs text-text-faint mt-2 text-center">
-                Download a QR code with your pet's contact info
+                Podsumowanie medyczne dla weterynarza
               </p>
+            </div>
+            
+            {/* Co-Ownership Section */}
+            <div>
+              <h3 className="font-poppins font-semibold text-base text-text-dark mb-3 flex items-center gap-2">
+                <Users size={18} />
+                Współwłaściciele
+              </h3>
+              
+              {/* Invite Button */}
+              {selectedPet.owner_uid === user?.uid && (
+                <Button
+                  variant="primary"
+                  onClick={handleGenerateInvite}
+                  disabled={generatingInvite}
+                  className="w-full flex items-center justify-center gap-2 mb-3"
+                >
+                  <UserPlus size={18} />
+                  {generatingInvite ? 'Generuję...' : 'Zaproś domownika'}
+                </Button>
+              )}
+              
+              {/* Co-owners List */}
+              {selectedPet.coOwners && selectedPet.coOwners.length > 0 && (
+                <Card className="bg-lime/5 border-lime-2/20 mb-3">
+                  <p className="font-inter text-sm text-text-dark">
+                    <Users size={14} className="inline mr-1" />
+                    {selectedPet.coOwners.length} współwłaściciel(i)
+                  </p>
+                </Card>
+              )}
+              
+              {/* Claim Code Input */}
+              <div>
+                <label className="block font-inter text-xs font-semibold text-text-gray mb-2">
+                  Dołącz do istniejącego psa
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={claimCode}
+                    onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+                    placeholder="6-znakowy kod"
+                    maxLength={6}
+                    className="flex-1 px-4 py-3 bg-card-2 text-text-dark placeholder-text-faint rounded-xl border-0 focus:ring-2 focus:ring-lime-2 outline-none font-mono text-sm uppercase"
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={handleClaimPet}
+                    disabled={claimingCode || claimCode.length !== 6}
+                    className="px-4"
+                  >
+                    {claimingCode ? '...' : 'Dołącz'}
+                  </Button>
+                </div>
+                <p className="font-inter text-xs text-text-faint mt-2">
+                  Wpisz kod otrzymany od innego właściciela
+                </p>
+              </div>
             </div>
           </div>
         )}
       </WhiteCard>
+      
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-poppins font-bold text-xl text-text-dark">Zaproszenie do współwłasności</h2>
+              <button
+                onClick={() => {
+                  setShowInviteModal(false)
+                  setInviteCode('')
+                  setQrCodeInvite('')
+                  setCopiedCode(false)
+                }}
+                className="text-text-gray hover:text-text-dark transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* QR Code */}
+              {qrCodeInvite && (
+                <div className="flex justify-center">
+                  <img src={qrCodeInvite} alt="Invite QR Code" className="w-48 h-48 rounded-xl border-2 border-border" />
+                </div>
+              )}
+              
+              {/* Invite Code */}
+              <div>
+                <label className="block font-poppins font-medium text-sm text-text-dark mb-2 text-center">
+                  Kod zaproszenia
+                </label>
+                <div className="bg-lime-gradient rounded-xl p-4 flex items-center justify-center gap-2">
+                  <span className="font-mono font-bold text-3xl text-bg-dark tracking-wider">
+                    {inviteCode}
+                  </span>
+                  <button
+                    onClick={handleCopyCode}
+                    className="ml-2 p-2 bg-white/20 rounded-lg active:scale-95 transition-transform"
+                  >
+                    {copiedCode ? <Check size={20} className="text-bg-dark" /> : <Copy size={20} className="text-bg-dark" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-card-2 rounded-xl p-4 space-y-2">
+                <p className="font-inter text-xs text-text-dark">
+                  📤 Udostępnij ten kod innej osobie
+                </p>
+                <p className="font-inter text-xs text-text-faint">
+                  ⏱️ Kod wygasa po 7 dniach
+                </p>
+                <p className="font-inter text-xs text-text-faint">
+                  🔒 Można użyć tylko raz
+                </p>
+              </div>
+            </div>
+            
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowInviteModal(false)
+                setInviteCode('')
+                setQrCodeInvite('')
+                setCopiedCode(false)
+              }}
+              className="w-full mt-6"
+            >
+              Zamknij
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Vet Pass Modal */}
+      {showVetPass && selectedPet && (
+        <VetPassModal
+          pet={selectedPet}
+          owner={user}
+          onClose={() => setShowVetPass(false)}
+        />
+      )}
     </div>
   )
 }

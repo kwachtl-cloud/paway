@@ -6,10 +6,12 @@ import {
   AlertCircle, 
   Calendar, 
   ChevronDown,
-  Heart
+  Heart,
+  Flame,
+  TrendingUp
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { getPets, getSOSAlertsNearby } from '../firebase/services'
+import { getPets, getSOSAlertsNearby, getUserWalkStats, recordWalkSession } from '../firebase/services'
 import SOSAlertCard from '../components/SOSAlertCard'
 import { getCurrentPosition } from '../utils/geolocation'
 import DarkHeader from '../components/DarkHeader'
@@ -26,6 +28,11 @@ export default function HomeScreen() {
   const [nearbyAlerts, setNearbyAlerts] = useState([]) // Other pets' alerts nearby
   const [loadingAlerts, setLoadingAlerts] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
+  
+  // Walk Streaks state
+  const [walkStats, setWalkStats] = useState(null)
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [testingWalk, setTestingWalk] = useState(false)
 
   // Load pets
   useEffect(() => {
@@ -69,6 +76,45 @@ export default function HomeScreen() {
         console.error('Geolocation error:', error)
       })
   }, [user])
+  
+  // Load walk stats
+  useEffect(() => {
+    if (!user?.uid) return
+    
+    const loadStats = async () => {
+      setLoadingStats(true)
+      try {
+        const stats = await getUserWalkStats(user.uid)
+        setWalkStats(stats)
+      } catch (error) {
+        console.error('Error loading walk stats:', error)
+      } finally {
+        setLoadingStats(false)
+      }
+    }
+    
+    loadStats()
+  }, [user])
+  
+  // Test walk recording (for demo/testing)
+  const handleTestWalk = async () => {
+    if (!user?.uid) return
+    
+    setTestingWalk(true)
+    try {
+      const updatedStats = await recordWalkSession(user.uid, {
+        duration: 30, // 30 minutes
+        distance: 2.5 // 2.5 km
+      })
+      setWalkStats(updatedStats)
+      alert(`Walk recorded! Streak: ${updatedStats.currentStreak} days 🎉`)
+    } catch (error) {
+      console.error('Error recording walk:', error)
+      alert('Failed to record walk')
+    } finally {
+      setTestingWalk(false)
+    }
+  }
 
   // Quick Actions
   const quickActions = [
@@ -218,6 +264,49 @@ export default function HomeScreen() {
             })}
           </div>
         </div>
+
+        {/* Walk Streaks Card */}
+        {!loadingStats && walkStats && (
+          <div className="mb-8">
+            <Card className="bg-gradient-to-br from-amber/10 to-amber/5 border-amber/20">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-amber rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Flame size={32} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-poppins font-bold text-2xl text-text-dark">
+                      {walkStats.currentStreak}
+                    </h3>
+                    <span className="font-poppins font-semibold text-text-gray text-sm">
+                      {walkStats.currentStreak === 1 ? 'dzień' : 'dni'} z rzędu! 🐾
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusPill color="amber">
+                      <TrendingUp size={12} />
+                      <span className="ml-1">{walkStats.totalWalks} spacerów</span>
+                    </StatusPill>
+                    {walkStats.lastWalkDate && (
+                      <p className="font-inter text-xs text-text-faint">
+                        Ostatni: {walkStats.lastWalkDate}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Test Walk Button (optional - for demo) */}
+              <button
+                onClick={handleTestWalk}
+                disabled={testingWalk}
+                className="mt-4 w-full py-2 bg-amber/10 hover:bg-amber/20 rounded-lg font-inter text-xs text-amber font-semibold transition-colors active:scale-95"
+              >
+                {testingWalk ? 'Zapisuję...' : '+ Dodaj dzisiejszy spacer (test)'}
+              </button>
+            </Card>
+          </div>
+        )}
 
         {/* My SOS Alerts Section */}
         {myAlerts.length > 0 && (
