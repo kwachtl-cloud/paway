@@ -144,10 +144,9 @@ export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
   
   try {
-    // Use popup for web, redirect for mobile
-    const result = isNativePlatform() 
-      ? await signInWithRedirect(auth, provider)
-      : await signInWithPopup(auth, provider)
+    // Use popup for ALL platforms - redirect doesn't work on Capacitor native
+    // Popup works through inAppBrowser on mobile
+    const result = await signInWithPopup(auth, provider)
     
     const user = result.user
     

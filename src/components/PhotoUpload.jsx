@@ -7,14 +7,14 @@ import { isNativePlatform } from '../utils/platform'
 export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5 }) {
   const [uploading, setUploading] = useState(false)
 
-  // Compress image to reduce size
+  // Compress image aggressively to reduce size for mobile upload
   const compressImage = async (base64String) => {
     return new Promise((resolve) => {
       const img = document.createElement('img')
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const maxWidth = 800
-        const maxHeight = 800
+        const maxWidth = 600  // Reduced from 800 for faster upload
+        const maxHeight = 600
         let width = img.width
         let height = img.height
 
@@ -35,7 +35,8 @@ export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
         
-        resolve(canvas.toDataURL('image/jpeg', 0.7))
+        // Aggressive compression: 0.5 quality for smaller files
+        resolve(canvas.toDataURL('image/jpeg', 0.5))
       }
       img.src = base64String
     })
@@ -62,7 +63,7 @@ export default function PhotoUpload({ photos = [], onPhotosChange, maxPhotos = 5
     try {
       // Show action sheet: Camera or Gallery
       const image = await CapCamera.getPhoto({
-        quality: 70,
+        quality: 50,  // Reduced from 70 for smaller initial size
         allowEditing: false,
         resultType: CameraResultType.Base64,
         source: CameraSource.Prompt, // Shows Camera/Gallery chooser
