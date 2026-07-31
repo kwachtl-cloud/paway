@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { Globe, PawPrint, Heart, ChevronRight, LogOut, User, Settings, Bell, Camera } from 'lucide-react'
-import { logoutUser, uploadProfilePhoto, updateUserPhotoURL } from '../firebase/services'
+import { Globe, PawPrint, Heart, ChevronRight, LogOut, User, Settings, Bell, Camera, MessageCircle, X } from 'lucide-react'
+import { logoutUser, uploadProfilePhoto, updateUserPhotoURL, sendFeedback } from '../firebase/services'
 import DarkHeader from '../components/DarkHeader'
 import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
@@ -10,6 +10,10 @@ import Card from '../components/Card'
 export default function ProfileScreen() {
   const { t, lang, setLang, navigate, setUser, user } = useApp()
   const [uploading, setUploading] = useState(false)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackType, setFeedbackType] = useState('bug')
+  const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [submittingFeedback, setSubmittingFeedback] = useState(false)
 
   const handleLogout = async () => {
     try {
@@ -44,6 +48,33 @@ export default function ProfileScreen() {
       setUploading(false)
     }
   }
+  
+  const handleSubmitFeedback = async () => {
+    if (!feedbackMessage.trim() || !user?.uid) return
+    
+    setSubmittingFeedback(true)
+    try {
+      await sendFeedback({
+        uid: user.uid,
+        userEmail: user.email,
+        userName: user.name,
+        type: feedbackType,
+        message: feedbackMessage.trim(),
+        appVersion: '1.0.0',
+        platform: 'web'
+      })
+      
+      alert(t('feedbackSuccess') || 'Dziękujemy za opinię! Twoja wiadomość została wysłana.')
+      setShowFeedbackModal(false)
+      setFeedbackMessage('')
+      setFeedbackType('bug')
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      alert(t('feedbackError') || 'Wystąpił błąd podczas wysyłania opinii. Spróbuj ponownie.')
+    } finally {
+      setSubmittingFeedback(false)
+    }
+  }
 
   const languages = [
     { code: 'pl', label: 'PL' },
@@ -58,6 +89,13 @@ export default function ProfileScreen() {
       label: 'Pet Passport',
       color: 'lime-2',
       screen: 'pet-passport'
+    },
+    {
+      id: 'feedback',
+      icon: MessageCircle,
+      label: t('sendFeedback') || '💬 Wyślij opinię / Zgłoś błąd',
+      color: 'blue-1',
+      action: () => setShowFeedbackModal(true)
     },
     {
       id: 'settings',
@@ -165,7 +203,7 @@ export default function ProfileScreen() {
               return (
                 <Card
                   key={item.id}
-                  onClick={() => navigate(item.screen)}
+                  onClick={() => item.action ? item.action() : navigate(item.screen)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -195,6 +233,98 @@ export default function ProfileScreen() {
           <span>Log Out</span>
         </Button>
       </WhiteCard>
+      
+      {/* Feedback Modal */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-poppins font-bold text-xl text-text-dark">
+                {t('sendFeedback') || '💬 Wyślij opinię'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false)
+                  setFeedbackMessage('')
+                  setFeedbackType('bug')
+                }}
+                className="text-text-gray hover:text-text-dark transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Feedback Type Selector */}
+              <div>
+                <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                  {t('feedbackType') || 'Typ zgłoszenia'}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFeedbackType('bug')}
+                    className={`flex-1 py-3 rounded-xl font-inter text-sm font-semibold transition-all ${
+                      feedbackType === 'bug'
+                        ? 'bg-coral/20 text-coral border-2 border-coral'
+                        : 'bg-card-2 text-text-gray'
+                    }`}
+                  >
+                    🐛 {t('bug') || 'Błąd'}
+                  </button>
+                  <button
+                    onClick={() => setFeedbackType('idea')}
+                    className={`flex-1 py-3 rounded-xl font-inter text-sm font-semibold transition-all ${
+                      feedbackType === 'idea'
+                        ? 'bg-blue-1/20 text-blue-1 border-2 border-blue-1'
+                        : 'bg-card-2 text-text-gray'
+                    }`}
+                  >
+                    💡 {t('idea') || 'Pomysł'}
+                  </button>
+                  <button
+                    onClick={() => setFeedbackType('praise')}
+                    className={`flex-1 py-3 rounded-xl font-inter text-sm font-semibold transition-all ${
+                      feedbackType === 'praise'
+                        ? 'bg-lime-1/30 text-lime-dark border-2 border-lime-2'
+                        : 'bg-card-2 text-text-gray'
+                    }`}
+                  >
+                    ❤️ {t('praise') || 'Pochwała'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Message Textarea */}
+              <div>
+                <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                  {t('feedbackMessage') || 'Twoja wiadomość'}
+                </label>
+                <textarea
+                  value={feedbackMessage}
+                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                  placeholder={t('feedbackPlaceholder') || 'Opisz szczegółowo swój problem lub pomysł...'}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-card-2 text-text-dark placeholder-text-faint rounded-xl border-0 focus:ring-2 focus:ring-blue-1 outline-none font-inter text-sm resize-none"
+                />
+                <p className="font-inter text-xs text-text-faint mt-2">
+                  {t('feedbackPrivacy') || 'Twoja opinia zostanie wysłana wraz z adresem email w celu kontaktu.'}
+                </p>
+              </div>
+              
+              {/* Submit Button */}
+              <Button
+                variant="primary"
+                onClick={handleSubmitFeedback}
+                disabled={submittingFeedback || !feedbackMessage.trim()}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={18} />
+                {submittingFeedback ? (t('sending') || 'Wysyłam...') : (t('submit') || 'Wyślij')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

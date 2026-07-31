@@ -1643,3 +1643,33 @@ export async function getPetById(petId) {
   const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
   return allPets.find(p => p.id === petId) || null
 }
+
+// === BETA FEEDBACK ===
+
+/**
+ * Send beta feedback/bug report from user
+ * @param {object} feedbackData - { uid, userEmail, type, message, appVersion }
+ * @returns {Promise<string>} Feedback document ID
+ */
+export async function sendFeedback(feedbackData) {
+  try {
+    const feedbackRef = await addDoc(collection(db, 'feedback'), {
+      uid: feedbackData.uid,
+      userEmail: feedbackData.userEmail,
+      userName: feedbackData.userName || 'Anonymous',
+      type: feedbackData.type || 'bug', // 'bug', 'idea', 'praise'
+      message: feedbackData.message,
+      appVersion: feedbackData.appVersion || '1.0.0',
+      platform: feedbackData.platform || 'web',
+      createdAt: serverTimestamp(),
+      status: 'new', // 'new', 'reviewed', 'resolved'
+      priority: 'normal', // 'low', 'normal', 'high'
+    })
+    
+    console.log('✅ Feedback submitted:', feedbackRef.id)
+    return feedbackRef.id
+  } catch (error) {
+    console.error('❌ Error sending feedback:', error)
+    throw error
+  }
+}

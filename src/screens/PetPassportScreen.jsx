@@ -16,7 +16,9 @@ import {
   Users,
   UserPlus,
   Copy,
-  Check
+  Check,
+  Clock,
+  Shield
 } from 'lucide-react'
 import { getPets, addPet, updatePet, deletePet, uploadPetPhoto, generatePetInviteCode, claimPetInviteCode, getAllUserPets } from '../firebase/services'
 import PhotoUpload from '../components/PhotoUpload'
@@ -49,6 +51,12 @@ export default function PetPassportScreen() {
   
   // Vet Pass state
   const [showVetPass, setShowVetPass] = useState(false)
+  
+  // Medical Reminders state
+  const [showReminderModal, setShowReminderModal] = useState(false)
+  const [reminderType, setReminderType] = useState('')
+  const [reminderDate, setReminderDate] = useState('')
+  const [savingReminder, setSavingReminder] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -140,6 +148,76 @@ export default function PetPassportScreen() {
       alert('Failed to claim pet')
     } finally {
       setClaimingCode(false)
+    }
+  }
+  
+  // Medical Reminders Helper Functions
+  const getReminderStatus = (dateString) => {
+    if (!dateString) return { status: 'not_set', color: 'amber', label: 'Nie ustawiono', daysLeft: null }
+    
+    const reminderDate = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    reminderDate.setHours(0, 0, 0, 0)
+    
+    const diffTime = reminderDate - today
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays < 0) {
+      // Expired
+      return { 
+        status: 'expired', 
+        color: 'coral', 
+        label: `Przekroczony o ${Math.abs(diffDays)} dni!`, 
+        daysLeft: diffDays 
+      }
+    } else if (diffDays <= 14) {
+      // Approaching (within 14 days)
+      return { 
+        status: 'approaching', 
+        color: 'amber', 
+        label: `Za ${diffDays} dni`, 
+        daysLeft: diffDays 
+      }
+    } else {
+      // Valid (more than 30 days)
+      return { 
+        status: 'valid', 
+        color: 'teal', 
+        label: `Ważne (${diffDays} dni)`, 
+        daysLeft: diffDays 
+      }
+    }
+  }
+  
+  const handleOpenReminderModal = (type, currentDate = '') => {
+    setReminderType(type)
+    setReminderDate(currentDate || '')
+    setShowReminderModal(true)
+  }
+  
+  const handleUpdateReminder = async () => {
+    if (!selectedPet || !reminderDate) return
+    
+    setSavingReminder(true)
+    try {
+      const updates = {
+        medicalReminders: {
+          ...(selectedPet.medicalReminders || {}),
+          [reminderType]: reminderDate
+        }
+      }
+      
+      await updatePet(selectedPet.id, updates)
+      await loadPets()
+      setShowReminderModal(false)
+      setReminderType('')
+      setReminderDate('')
+    } catch (error) {
+      console.error('Error updating reminder:', error)
+      alert('Error updating reminder')
+    } finally {
+      setSavingReminder(false)
     }
   }
   
@@ -760,6 +838,99 @@ export default function PetPassportScreen() {
               </p>
             </div>
             
+            {/* Medical Reminders Section */}
+            <div>
+              <h3 className="font-poppins font-semibold text-base text-text-dark mb-3 flex items-center gap-2">
+                <Syringe size={18} className="text-teal" />
+                {t('medicalReminders') || 'Przypomnienia Medyczne'}
+              </h3>
+              
+              {/* Reminders List */}
+              <div className="space-y-3">
+                {/* Vaccination Reminder */}
+                {(() => {
+                  const reminderStatus = getReminderStatus(selectedPet.medicalReminders?.vaccination)
+                  return (
+                    <Card 
+                      onClick={() => handleOpenReminderModal('vaccination', selectedPet.medicalReminders?.vaccination)}
+                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Syringe size={14} className="text-teal" />
+                            <p className="font-inter text-sm font-semibold text-text-dark">
+                              {t('vaccination') || 'Wścieklizna / Szczepienia'}
+                            </p>
+                          </div>
+                          <StatusPill color={reminderStatus.color} className="text-xs">
+                            {reminderStatus.label}
+                          </StatusPill>
+                        </div>
+                        <Calendar size={16} className="text-text-gray flex-shrink-0 mt-1" />
+                      </div>
+                    </Card>
+                  )
+                })()}
+                
+                {/* Deworming Reminder */}
+                {(() => {
+                  const reminderStatus = getReminderStatus(selectedPet.medicalReminders?.deworming)
+                  return (
+                    <Card 
+                      onClick={() => handleOpenReminderModal('deworming', selectedPet.medicalReminders?.deworming)}
+                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertCircle size={14} className="text-amber" />
+                            <p className="font-inter text-sm font-semibold text-text-dark">
+                              {t('deworming') || 'Odrobaczanie'}
+                            </p>
+                          </div>
+                          <StatusPill color={reminderStatus.color} className="text-xs">
+                            {reminderStatus.label}
+                          </StatusPill>
+                        </div>
+                        <Calendar size={16} className="text-text-gray flex-shrink-0 mt-1" />
+                      </div>
+                    </Card>
+                  )
+                })()}
+                
+                {/* Ticks & Fleas Reminder */}
+                {(() => {
+                  const reminderStatus = getReminderStatus(selectedPet.medicalReminders?.ticksFleas)
+                  return (
+                    <Card 
+                      onClick={() => handleOpenReminderModal('ticksFleas', selectedPet.medicalReminders?.ticksFleas)}
+                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Shield size={14} className="text-lime-2" />
+                            <p className="font-inter text-sm font-semibold text-text-dark">
+                              {t('ticksFleas') || 'Ochrona przed kleszczami / pchłami'}
+                            </p>
+                          </div>
+                          <StatusPill color={reminderStatus.color} className="text-xs">
+                            {reminderStatus.label}
+                          </StatusPill>
+                        </div>
+                        <Calendar size={16} className="text-text-gray flex-shrink-0 mt-1" />
+                      </div>
+                    </Card>
+                  )
+                })()}
+              </div>
+              
+              <p className="font-inter text-xs text-text-faint mt-3 text-center">
+                {t('reminderHint') || 'Kliknij, aby ustawić lub zmienić datę przypomnienia'}
+              </p>
+            </div>
+            
             {/* Co-Ownership Section */}
             <div>
               <h3 className="font-poppins font-semibold text-base text-text-dark mb-3 flex items-center gap-2">
@@ -821,6 +992,80 @@ export default function PetPassportScreen() {
           </div>
         )}
       </WhiteCard>
+      
+      {/* Medical Reminder Modal */}
+      {showReminderModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-poppins font-bold text-lg text-text-dark">
+                {reminderType === 'vaccination' && (t('setVaccination') || 'Ustaw datę szczepienia')}
+                {reminderType === 'deworming' && (t('setDeworming') || 'Ustaw datę odrobaczenia')}
+                {reminderType === 'ticksFleas' && (t('setTicksFleas') || 'Ustaw ochronę przed kleszczami')}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowReminderModal(false)
+                  setReminderType('')
+                  setReminderDate('')
+                }}
+                className="text-text-gray hover:text-text-dark transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Date Input */}
+              <div>
+                <label className="block font-inter text-sm font-semibold text-text-dark mb-2">
+                  {t('nextDueDate') || 'Następny termin'}
+                </label>
+                <input
+                  type="date"
+                  value={reminderDate}
+                  onChange={(e) => setReminderDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-card-2 text-text-dark rounded-xl border-0 focus:ring-2 focus:ring-teal outline-none font-inter text-sm"
+                />
+                <p className="font-inter text-xs text-text-faint mt-2">
+                  {t('reminderDateHint') || 'Otrzymasz przypomnienie 14 dni przed terminem'}
+                </p>
+              </div>
+              
+              {/* Status Preview */}
+              {reminderDate && (() => {
+                const status = getReminderStatus(reminderDate)
+                return (
+                  <Card className="bg-card-2/50">
+                    <div className="flex items-center gap-3">
+                      <Clock size={18} style={{ color: `var(--${status.color})` }} />
+                      <div>
+                        <p className="font-inter text-xs text-text-gray mb-1">
+                          {t('status') || 'Status'}
+                        </p>
+                        <StatusPill color={status.color} className="text-xs">
+                          {status.label}
+                        </StatusPill>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })()}
+              
+              {/* Save Button */}
+              <Button
+                variant="primary"
+                onClick={handleUpdateReminder}
+                disabled={savingReminder || !reminderDate}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <Calendar size={18} />
+                {savingReminder ? (t('saving') || 'Zapisuję...') : (t('saveReminder') || 'Zapisz przypomnienie')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Invite Modal */}
       {showInviteModal && (

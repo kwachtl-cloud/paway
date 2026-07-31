@@ -1,6 +1,7 @@
 import { useApp } from './context/AppContext'
 import BottomNav from './components/BottomNav'
 import FloatingSOSButton from './components/FloatingSOSButton'
+import OnboardingModal from './components/OnboardingModal'
 import WelcomeScreen from './screens/WelcomeScreen'
 import HomeScreen from './screens/HomeScreen'
 import ProfileScreen from './screens/ProfileScreen'
@@ -114,6 +115,7 @@ function App() {
       {renderScreen()}
       {showBottomNav && <BottomNav />}
       {showSOSButton && <FloatingSOSButton />}
+      {user && <OnboardingModal />}
     </>
   )
 }
