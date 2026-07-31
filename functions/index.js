@@ -213,4 +213,210 @@ exports.sendSOSNotifications = onDocumentCreated(
   }
 );
 
+/**
+ * Send push notifications when new hazard is reported
+ * Triggers on: hazards/{hazardId}
+ */
+exports.sendHazardNotification = onDocumentCreated(
+  'hazards/{hazardId}',
+  async (event) => {
+    try {
+      // Get the newly created hazard data
+      const hazardData = event.data.data();
+      const hazardId = event.params.hazardId;
+
+      console.log(`⚠️ New Hazard Reported: ${hazardId}`, hazardData);
+
+      // Validate required fields
+      if (!hazardData?.location?.lat || !hazardData?.location?.lng) {
+        console.error('❌ Hazard missing location data');
+        return null;
+      }
+
+      const {
+        type,
+        description,
+        location,
+        reportedBy,
+        reporterName,
+      } = hazardData;
+
+      const hazardLat = location.lat;
+      const hazardLng = location.lng;
+      const radiusInKm = 5; // 5km notification radius for hazards
+      const radiusInM = radiusInKm * 1000;
+
+      console.log(`📍 Hazard location: ${hazardLat}, ${hazardLng}`);
+      console.log(`📡 Notification radius: ${radiusInKm}km`);
+
+      // Map hazard types to readable Polish labels
+      const hazardLabels = {
+        bait: 'Rozsypana trutka / niebezpieczny pokarm',
+        glass: 'Rozbite szkło',
+        wildlife: 'Dzikie zwierzęta (dzik, lis)',
+        reactive_dog: 'Reaktywny / agresywny pies',
+        other: 'Inne zagrożenie',
+      };
+
+      const hazardLabel = hazardLabels[type] || 'Zagrożenie';
+
+      // Get geohash bounds for the radius
+      const bounds = geohashQueryBounds([hazardLat, hazardLng], radiusInM);
+      console.log(`🔍 Geohash bounds: ${bounds.length} queries`);
+
+      // Query users within geohash bounds
+      const usersInRadius = [];
+      
+      for (const bound of bounds) {
+        const usersRef = db.collection('users');
+        const q = usersRef
+          .orderBy('lastLocation.geohash')
+          .startAt(bound[0])
+          .endAt(bound[1]);
+
+        const snapshot = await q.get();
+        
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          
+          // Skip the user who reported the hazard
+          if (doc.id === reportedBy) {
+            return;
+          }
+
+          // Validate user has location and FCM token
+          if (!userData.lastLocation?.lat || !userData.lastLocation?.lng) {
+            return;
+          }
+
+          if (!userData.fcmToken) {
+            console.log(`⚠️ User ${doc.id} has no FCM token`);
+            return;
+          }
+
+          // Calculate actual distance
+          const userLat = userData.lastLocation.lat;
+          const userLng = userData.lastLocation.lng;
+          const distanceKm = distanceBetween([hazardLat, hazardLng], [userLat, userLng]);
+
+          // Only include if within radius (in km)
+          if (distanceKm <= radiusInKm) {
+            usersInRadius.push({
+              uid: doc.id,
+              fcmToken: userData.fcmToken,
+              distance: distanceKm.toFixed(2),
+            });
+          }
+        });
+      }
+
+      console.log(`👥 Found ${usersInRadius.length} users in ${radiusInKm}km radius`);
+
+      if (usersInRadius.length === 0) {
+        console.log('ℹ️ No users to notify');
+        return null;
+      }
+
+      // Prepare notification payload
+      const notificationTitle = '⚠️ OSTRZEŻENIE: Nowe zagrożenie w okolicy!';
+      const notificationBody = `${hazardLabel} — sprawdź bezpieczną trasę w Paway! (${
+        usersInRadius[0]?.distance || '?'
+      }km od Ciebie)`;
+
+      // Prepare messages for all users
+      const messages = usersInRadius.map((user) => ({
+        token: user.fcmToken,
+        notification: {
+          title: notificationTitle,
+          body: notificationBody,
+        },
+        data: {
+          hazardId: hazardId,
+          type: 'hazard_alert',
+          hazardType: type,
+          hazardLabel: hazardLabel,
+          description: description || '',
+          distance: user.distance.toString(),
+          latitude: hazardLat.toString(),
+          longitude: hazardLng.toString(),
+          reporterName: reporterName || 'Anonymous',
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'hazard_alerts',
+            priority: 'high',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            visibility: 'public',
+            color: '#FF7A6B', // Coral for hazards
+            icon: 'ic_stat_notification',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+              'content-available': 1,
+            },
+          },
+        },
+      }));
+
+      // Send notifications in batches of 500 (FCM limit)
+      const batchSize = 500;
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (let i = 0; i < messages.length; i += batchSize) {
+        const batch = messages.slice(i, i + batchSize);
+        
+        try {
+          const response = await messaging.sendEach(batch);
+          
+          successCount += response.successCount;
+          failureCount += response.failureCount;
+
+          // Log failed tokens for debugging
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              console.error(`❌ Failed to send to user ${usersInRadius[i + idx].uid}:`, resp.error);
+              
+              // TODO: Handle invalid tokens (remove from database)
+              if (resp.error?.code === 'messaging/invalid-registration-token' ||
+                  resp.error?.code === 'messaging/registration-token-not-registered') {
+                console.log(`🗑️ Should remove invalid token for user ${usersInRadius[i + idx].uid}`);
+              }
+            }
+          });
+        } catch (error) {
+          console.error('❌ Error sending batch:', error);
+          failureCount += batch.length;
+        }
+      }
+
+      console.log(`✅ Hazard notifications sent successfully: ${successCount}`);
+      console.log(`❌ Hazard notifications failed: ${failureCount}`);
+
+      // Update hazard with notification stats
+      await db.collection('hazards').doc(hazardId).update({
+        notificationsSent: successCount,
+        notificationsFailed: failureCount,
+        notificationsSentAt: new Date(),
+      });
+
+      return {
+        success: true,
+        sent: successCount,
+        failed: failureCount,
+        totalUsers: usersInRadius.length,
+      };
+    } catch (error) {
+      console.error('❌ Error in sendHazardNotification:', error);
+      throw error;
+    }
+  }
+);
+
 
