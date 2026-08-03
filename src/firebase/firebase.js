@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAnalytics } from 'firebase/analytics'
-import { getAuth } from 'firebase/auth'
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -22,6 +22,14 @@ console.log('🔥 Firebase Config:', {
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
+
+// Use IndexedDB/localStorage instead of sessionStorage.
+// Prevents "missing initial state" errors in Capacitor WebViews
+// and browsers with storage partitioning (Chrome, Safari ITP).
+setPersistence(auth, browserLocalPersistence).catch((e) =>
+  console.warn('⚠️ Could not set auth persistence:', e)
+)
+
 export const db = getFirestore(app)
 export const storage = getStorage(app)
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null

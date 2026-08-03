@@ -26,15 +26,11 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
 } from 'firebase/auth'
 
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { geohashForLocation, geohashQueryBounds, distanceBetween } from 'geofire-common'
 import { auth, db, storage } from './firebase'
-
-export { getRedirectResult }
 
 // === AUTH ===
 export async function registerUser(email, password, name) {
@@ -147,55 +143,32 @@ export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
   provider.addScope('email')
   provider.addScope('profile')
-  
-  const { isNativePlatform } = await import('../utils/platform')
-  const native = isNativePlatform()
-  
-  console.log('🔐 Starting Google Sign-In... platform:', native ? 'native' : 'web')
-  
-  if (native) {
-    // On Capacitor WebView, popups don't work — use redirect
-    await signInWithRedirect(auth, provider)
-    // Function returns undefined — AppContext handles getRedirectResult after redirect
-    return null
-  }
-  
-  // Web browser: try popup first, fall back to redirect
+
+  console.log('🔐 Starting Google Sign-In (popup)...')
+
+  // Always use signInWithPopup — avoids the "missing initial state" error
+  // that signInWithRedirect causes in Capacitor WebViews and browsers with
+  // storage partitioning (sessionStorage inaccessible after redirect).
   try {
     const result = await signInWithPopup(auth, provider)
     console.log('✅ Google popup sign-in successful:', result.user.uid)
     await ensureUserProfile(result.user)
     return result.user
   } catch (error) {
-    console.warn('⚠️ Popup failed, trying redirect...', error.code)
-    
-    const popupErrors = [
-      'auth/popup-blocked',
-      'auth/popup-closed-by-user',
-      'auth/cancelled-popup-request',
-    ]
-    
-    if (popupErrors.includes(error.code)) {
-      // Popup was blocked or cancelled — redirect flow
-      await signInWithRedirect(auth, provider)
-      return null // AppContext handles result after redirect
-    }
-    
-    // Translate other errors to Polish-friendly messages
     console.error('❌ Google sign-in error:', error.code, error.message)
-    
-    if (error.code === 'auth/unauthorized-domain') {
+
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      throw new Error('Logowanie anulowane. Spróbuj ponownie.')
+    } else if (error.code === 'auth/popup-blocked') {
+      throw new Error('Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okna i spróbuj ponownie.')
+    } else if (error.code === 'auth/unauthorized-domain') {
       throw new Error('Ta domena nie jest autoryzowana w Firebase. Skontaktuj się z supportem.')
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Brak połączenia z internetem. Sprawdź sieć i spróbuj ponownie.')
     } else if (error.code === 'auth/too-many-requests') {
       throw new Error('Za dużo prób. Poczekaj chwilę i spróbuj ponownie.')
-    } else if (error.message?.includes('missing initial state') || error.message?.includes('COOP')) {
-      // COOP/COEP cross-origin issue — fall back to redirect
-      await signInWithRedirect(auth, provider)
-      return null
     }
-    
+
     throw error
   }
 }

@@ -26,23 +26,8 @@ export function AppProvider({ children }) {
     const setup = async () => {
       try {
         const { auth } = await import('../firebase/firebase')
-        const { onAuthStateChanged, getRedirectResult } = await import('firebase/auth')
-        
-        // Handle redirect result from Google signInWithRedirect (runs once on load)
-        try {
-          const redirectResult = await getRedirectResult(auth)
-          if (redirectResult?.user) {
-            console.log('🔁 Google redirect sign-in successful:', redirectResult.user.uid)
-            await ensureUserProfile(redirectResult.user)
-            // onAuthStateChanged below will pick up the user automatically
-          }
-        } catch (redirectErr) {
-          // Redirect errors are non-fatal — user can try again
-          if (redirectErr.code !== 'auth/no-current-user') {
-            console.warn('⚠️ Redirect result error:', redirectErr.code, redirectErr.message)
-          }
-        }
-        
+        const { onAuthStateChanged } = await import('firebase/auth')
+
         unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
           if (firebaseUser) {
             console.log('🔑 Firebase user authenticated:', firebaseUser.uid)

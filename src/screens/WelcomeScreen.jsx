@@ -43,28 +43,20 @@ export default function WelcomeScreen() {
   const handleGoogleSignIn = async () => {
     setError('')
     setLoading(true)
-    
+
     try {
-      const user = await loginWithGoogle()
-      
-      if (user) {
-        // Popup flow succeeded immediately
-        setUser({
-          uid: user.uid,
-          name: user.displayName || 'User',
-          email: user.email,
-          photoURL: user.photoURL
-        })
-        navigate('home')
-      } else {
-        // Redirect flow started — page will reload after Google auth
-        // Show info message instead of hiding the button
-        setError('Przekierowuję do Google... Poczekaj chwilę.')
-        // Don't reset loading — redirect will reload the page anyway
-      }
+      const googleUser = await loginWithGoogle()
+      setUser({
+        uid: googleUser.uid,
+        name: googleUser.displayName || 'User',
+        email: googleUser.email,
+        photoURL: googleUser.photoURL,
+      })
+      navigate('home')
     } catch (err) {
       const msg = err.message.replace('Firebase: ', '').replace('auth/', '')
       setError(msg)
+    } finally {
       setLoading(false)
     }
   }
