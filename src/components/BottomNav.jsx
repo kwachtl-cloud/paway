@@ -1,16 +1,40 @@
-import { Home, MapPin, PawPrint, User, Plus } from 'lucide-react'
+import { Home, PawPrint, User, Plus, MessageSquare } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useEffect, useState } from 'react'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase/firebase'
+
+function useUnreadMessages(userUid) {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    if (!userUid) return
+    const q = query(
+      collection(db, 'conversations'),
+      where('participants', 'array-contains', userUid)
+    )
+    const unsub = onSnapshot(q, (snap) => {
+      let total = 0
+      snap.forEach((d) => {
+        total += d.data().unreadCount?.[userUid] || 0
+      })
+      setCount(total)
+    })
+    return () => unsub()
+  }, [userUid])
+  return count
+}
 
 // MVP TABS - tylko kluczowe funkcjonalności
 const tabIcons = [
   { id: 'home', icon: Home, labelKey: 'home' },
-  { id: 'park-radar', icon: MapPin, labelKey: 'places' },
+  { id: 'messages', icon: MessageSquare, labelKey: 'messages' },
   { id: 'pet-passport', icon: PawPrint, labelKey: 'petPassport' },
   { id: 'profile', icon: User, labelKey: 'profile' },
 ]
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, setCurrentScreen, navigate, t } = useApp()
+  const { activeTab, setActiveTab, setCurrentScreen, navigate, t, user } = useApp()
+  const unreadCount = useUnreadMessages(user?.uid)
 
   const handleTabClick = (id) => {
     setActiveTab(id)
@@ -35,7 +59,14 @@ export default function BottomNav() {
                 : 'text-text-gray'
             }`}
           >
-            <Icon size={22} strokeWidth={activeTab === id ? 2.5 : 2} />
+            <div className="relative">
+              <Icon size={22} strokeWidth={activeTab === id ? 2.5 : 2} />
+              {id === 'messages' && unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-lime-gradient text-bg-dark text-[9px] font-poppins font-bold rounded-full flex items-center justify-center leading-none">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </div>
             <span className="text-[9px] font-inter font-semibold uppercase tracking-wide leading-tight">
               {t(labelKey)}
             </span>

@@ -53,7 +53,7 @@ export function AppProvider({ children }) {
               photoURL: firebaseUser.photoURL || null
             })
             setCurrentScreen(prev => prev === 'welcome' ? 'home' : prev)
-            setActiveTab(prev => prev === 'home' || prev === 'park-radar' || prev === 'pet-passport' || prev === 'profile' ? prev : 'home')
+            setActiveTab(prev => ['home', 'messages', 'pet-passport', 'profile'].includes(prev) ? prev : 'home')
           } else {
             console.log('🔑 No Firebase user, redirecting to welcome')
             setUser(null)
@@ -82,7 +82,7 @@ export function AppProvider({ children }) {
     setCurrentScreen(screen)
     
     // Update activeTab if navigating to a main tab screen
-    const mainTabs = ['home', 'park-radar', 'pet-passport', 'profile']
+    const mainTabs = ['home', 'messages', 'pet-passport', 'profile']
     if (mainTabs.includes(screen)) {
       setActiveTab(screen)
     }

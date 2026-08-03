@@ -324,6 +324,56 @@ export async function updateUserLocation(uid, lat, lng) {
   }
 }
 
+/**
+ * Search users by name or email prefix (case-sensitive prefix match).
+ * Returns up to 15 results, excluding currentUid.
+ * @param {string} searchTerm - Search string (min 2 chars)
+ * @param {string} currentUid - UID to exclude from results
+ * @returns {Promise<Array<{uid, name, email, photoURL}>>}
+ */
+export async function searchUsers(searchTerm, currentUid) {
+  if (!searchTerm || searchTerm.trim().length < 2) return []
+
+  const term = searchTerm.trim()
+  const termLower = term.toLowerCase()
+  const results = new Map()
+
+  try {
+    const [emailSnap, nameSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, 'users'),
+        orderBy('email'),
+        where('email', '>=', termLower),
+        where('email', '<=', termLower + '\uf8ff'),
+        limit(10)
+      )),
+      getDocs(query(
+        collection(db, 'users'),
+        orderBy('name'),
+        where('name', '>=', term),
+        where('name', '<=', term + '\uf8ff'),
+        limit(10)
+      )),
+    ])
+
+    for (const d of [...emailSnap.docs, ...nameSnap.docs]) {
+      if (d.id !== currentUid) {
+        const data = d.data()
+        results.set(d.id, {
+          uid: d.id,
+          name: data.name || data.displayName || 'Unknown',
+          email: data.email || '',
+          photoURL: data.photoURL || null,
+        })
+      }
+    }
+  } catch (error) {
+    console.error('searchUsers error:', error)
+  }
+
+  return Array.from(results.values()).slice(0, 15)
+}
+
 export async function getUsersInRadius(centerLat, centerLng, radiusInKm = 5) {
   const radiusInM = radiusInKm * 1000
   const bounds = geohashQueryBounds([centerLat, centerLng], radiusInM)
