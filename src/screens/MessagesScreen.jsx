@@ -11,16 +11,20 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
-  const [starting, setStarting] = useState(null) // uid of user being opened
+  const [starting, setStarting] = useState(null)
+  const [startError, setStartError] = useState('')
   const debounceRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    inputRef.current?.focus()
+    // Delay focus slightly so keyboard doesn't jump immediately
+    const t = setTimeout(() => inputRef.current?.focus(), 150)
+    return () => clearTimeout(t)
   }, [])
 
   useEffect(() => {
     clearTimeout(debounceRef.current)
+    setStartError('')
     if (searchTerm.trim().length < 2) {
       setResults([])
       return
@@ -41,6 +45,7 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
 
   const handleSelect = async (u) => {
     if (starting) return
+    setStartError('')
     setStarting(u.uid)
     try {
       const convId = await getOrCreateConversation(currentUid, u.uid, {
@@ -51,6 +56,7 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
       onStartChat(convId)
     } catch (e) {
       console.error('start chat error', e)
+      setStartError('Could not open chat. Check your connection and try again.')
       setStarting(null)
     }
   }
@@ -58,64 +64,86 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: 'rgba(0,0,0,0.6)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-[400px] bg-card rounded-t-[24px] pb-safe overflow-hidden"
-        style={{ maxHeight: '80vh' }}
+        className="w-full max-w-[400px] bg-card rounded-t-[26px] overflow-hidden"
+        style={{ maxHeight: '90vh', paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
       >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="font-poppins font-semibold text-base text-text-dark">New conversation</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-card-2 text-text-gray active:scale-95">
-            <X size={16} />
+        <div className="flex items-center justify-between px-5 pt-2 pb-4">
+          <h2 className="font-poppins font-bold text-lg text-text-dark">New conversation</h2>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-card-2 text-text-gray active:scale-95"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        {/* Search input */}
-        <div className="px-5 pb-3">
-          <div className="flex items-center gap-3 bg-card-2 rounded-2xl px-4 py-3 border border-border">
-            <Search size={16} className="text-text-faint flex-shrink-0" />
+        {/* Search input — 16px font prevents iOS auto-zoom */}
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-3 bg-card-2 rounded-2xl px-4 py-4 border border-border">
+            <Search size={18} className="text-text-faint flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by name or email…"
-              className="flex-1 bg-transparent font-inter text-sm text-text-dark placeholder:text-text-faint outline-none"
+              style={{ fontSize: '16px' }}
+              className="flex-1 bg-transparent font-inter text-text-dark placeholder:text-text-faint outline-none"
             />
-            {searching && <Loader size={14} className="text-text-faint animate-spin flex-shrink-0" />}
+            {searching && <Loader size={16} className="text-text-faint animate-spin flex-shrink-0" />}
           </div>
         </div>
 
+        {/* Error */}
+        {startError && (
+          <div className="mx-5 mb-3 px-4 py-3 bg-coral/10 rounded-xl">
+            <p className="font-inter text-sm text-coral">{startError}</p>
+          </div>
+        )}
+
         {/* Results */}
-        <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: 'calc(80vh - 130px)' }}>
+        <div className="overflow-y-auto px-5 pb-8" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           {searchTerm.trim().length > 0 && searchTerm.trim().length < 2 && (
-            <p className="font-inter text-xs text-text-faint text-center py-4">Type at least 2 characters…</p>
+            <p className="font-inter text-sm text-text-faint text-center py-6">Type at least 2 characters…</p>
           )}
           {!searching && searchTerm.trim().length >= 2 && results.length === 0 && (
-            <p className="font-inter text-xs text-text-gray text-center py-4">No users found</p>
+            <p className="font-inter text-sm text-text-gray text-center py-6">No users found for "{searchTerm}"</p>
           )}
           {results.map((u) => (
             <button
               key={u.uid}
               onClick={() => handleSelect(u)}
               disabled={!!starting}
-              className="w-full flex items-center gap-3 py-3 px-1 rounded-xl active:bg-card-2 transition-colors text-left disabled:opacity-60"
+              className="w-full flex items-center gap-4 py-4 px-2 rounded-2xl active:bg-card-2 transition-colors text-left disabled:opacity-60 border-b border-border last:border-0"
             >
               {u.photoURL ? (
-                <img src={u.photoURL} alt={u.name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+                <img src={u.photoURL} alt={u.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
               ) : (
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center flex-shrink-0">
-                  <User size={20} className="text-bg-dark" />
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center flex-shrink-0">
+                  <User size={24} className="text-bg-dark" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-inter font-semibold text-sm text-text-dark truncate">{u.name}</p>
-                <p className="font-inter text-xs text-text-gray truncate">{u.email}</p>
+                <p className="font-poppins font-semibold text-base text-text-dark truncate">{u.name}</p>
+                <p className="font-inter text-sm text-text-gray truncate">{u.email}</p>
               </div>
-              {starting === u.uid && <Loader size={16} className="text-lime-2 animate-spin flex-shrink-0" />}
+              {starting === u.uid ? (
+                <Loader size={20} className="text-lime-2 animate-spin flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-lime-1/20 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare size={16} className="text-lime-2" />
+                </div>
+              )}
             </button>
           ))}
         </div>

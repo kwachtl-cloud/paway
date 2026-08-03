@@ -123,7 +123,7 @@ export default function HomeScreen() {
       icon: MapPin, 
       label: 'Places',
       color: 'teal',
-      screen: 'messages'
+      screen: 'park-radar'
     },
     { 
       id: 'meetups', 

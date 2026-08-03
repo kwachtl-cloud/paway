@@ -170,15 +170,15 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       // Users can read conversations they're part of
       allow read: if isAuthenticated() && 
-        request.auth.uid in resource.data.participantIds;
+        request.auth.uid in resource.data.participants;
       
       // Users can create conversations
       allow create: if isAuthenticated() && 
-        request.auth.uid in request.resource.data.participantIds;
+        request.auth.uid in request.resource.data.participants;
       
       // Participants can update conversation metadata
       allow update: if isAuthenticated() && 
-        request.auth.uid in resource.data.participantIds;
+        request.auth.uid in resource.data.participants;
       
       // No one can delete conversations
       allow delete: if false;
@@ -187,12 +187,12 @@ service cloud.firestore {
       match /messages/{messageId} {
         // Users can read messages from their conversations
         allow read: if isAuthenticated() && 
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
         
         // Users can send messages to their conversations
         allow create: if isAuthenticated() && 
           request.auth.uid == request.resource.data.senderId &&
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
         
         // No updates or deletes for messages
         allow update, delete: if false;
