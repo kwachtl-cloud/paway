@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect } 
 import { translations } from '../data/translations'
 import { initializeBackButtonHandler, removeBackButtonHandler } from '../utils/backButton'
 import { initializePushNotifications, setupPushNotificationListeners, removePushNotificationListeners } from '../utils/pushNotifications'
-import { updateUserFCMToken, updateUserLocation } from '../firebase/services'
+import { updateUserFCMToken, updateUserLocation, ensureUserProfile } from '../firebase/services'
 import { getCurrentPosition } from '../utils/geolocation'
 
 const AppContext = createContext()
@@ -19,48 +19,56 @@ export function AppProvider({ children }) {
   const [selectedAlertId, setSelectedAlertId] = useState(null)
 
   // Firebase Auth listener (with safe error handling)
+  // NOTE: Empty deps [] — subscribe once, never re-subscribe on screen changes
   useEffect(() => {
     let unsubscribe = () => {}
     
-    try {
-      // Lazy load Firebase auth to avoid blocking app startup
-      import('../firebase/firebase').then(({ auth }) => {
-        import('firebase/auth').then(({ onAuthStateChanged }) => {
-          unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-            if (firebaseUser) {
-              console.log('🔑 Firebase user authenticated:', firebaseUser.uid)
-              setUser({
-                uid: firebaseUser.uid,
-                name: firebaseUser.displayName || 'User',
-                email: firebaseUser.email,
-                photoURL: firebaseUser.photoURL || null
-              })
-              // If on welcome screen, navigate to home
-              if (currentScreen === 'welcome') {
-                console.log('✅ User logged in, navigating to home')
-                setCurrentScreen('home')
-                setActiveTab('home')
-              }
-            } else {
-              console.log('🔑 No Firebase user, redirecting to welcome')
-              setUser(null)
-              // Navigate to welcome screen on logout
-              setCurrentScreen('welcome')
-              setActiveTab('home')
-            }
-          })
-        }).catch(err => {
-          console.warn('⚠️ Firebase auth import failed:', err)
+    const setup = async () => {
+      try {
+        const { auth } = await import('../firebase/firebase')
+        const { onAuthStateChanged, getRedirectResult } = await import('firebase/auth')
+        
+        // Handle redirect result from Google signInWithRedirect (runs once on load)
+        try {
+          const redirectResult = await getRedirectResult(auth)
+          if (redirectResult?.user) {
+            console.log('🔁 Google redirect sign-in successful:', redirectResult.user.uid)
+            await ensureUserProfile(redirectResult.user)
+            // onAuthStateChanged below will pick up the user automatically
+          }
+        } catch (redirectErr) {
+          // Redirect errors are non-fatal — user can try again
+          if (redirectErr.code !== 'auth/no-current-user') {
+            console.warn('⚠️ Redirect result error:', redirectErr.code, redirectErr.message)
+          }
+        }
+        
+        unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+          if (firebaseUser) {
+            console.log('🔑 Firebase user authenticated:', firebaseUser.uid)
+            setUser({
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'User',
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL || null
+            })
+            setCurrentScreen(prev => prev === 'welcome' ? 'home' : prev)
+            setActiveTab(prev => prev === 'home' || prev === 'park-radar' || prev === 'pet-passport' || prev === 'profile' ? prev : 'home')
+          } else {
+            console.log('🔑 No Firebase user, redirecting to welcome')
+            setUser(null)
+            setCurrentScreen('welcome')
+            setActiveTab('home')
+          }
         })
-      }).catch(err => {
-        console.warn('⚠️ Firebase import failed:', err)
-      })
-    } catch (error) {
-      console.warn('⚠️ Firebase auth setup failed:', error)
+      } catch (error) {
+        console.warn('⚠️ Firebase auth setup failed:', error)
+      }
     }
     
+    setup()
     return () => unsubscribe()
-  }, [currentScreen])
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = useCallback(
     (key) => {

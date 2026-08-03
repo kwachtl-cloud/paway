@@ -29,9 +29,12 @@ import {
   signInWithRedirect,
   getRedirectResult,
 } from 'firebase/auth'
+
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { geohashForLocation, geohashQueryBounds, distanceBetween } from 'geofire-common'
 import { auth, db, storage } from './firebase'
+
+export { getRedirectResult }
 
 // === AUTH ===
 export async function registerUser(email, password, name) {
@@ -142,44 +145,80 @@ export async function loginUser(email, password) {
 
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
+  provider.addScope('email')
+  provider.addScope('profile')
   
+  const { isNativePlatform } = await import('../utils/platform')
+  const native = isNativePlatform()
+  
+  console.log('🔐 Starting Google Sign-In... platform:', native ? 'native' : 'web')
+  
+  if (native) {
+    // On Capacitor WebView, popups don't work — use redirect
+    await signInWithRedirect(auth, provider)
+    // Function returns undefined — AppContext handles getRedirectResult after redirect
+    return null
+  }
+  
+  // Web browser: try popup first, fall back to redirect
   try {
-    console.log('🔐 Starting Google Sign-In...')
-    
-    // Use popup for ALL platforms - most reliable method
     const result = await signInWithPopup(auth, provider)
+    console.log('✅ Google popup sign-in successful:', result.user.uid)
+    await ensureUserProfile(result.user)
+    return result.user
+  } catch (error) {
+    console.warn('⚠️ Popup failed, trying redirect...', error.code)
     
-    console.log('✅ Google Sign-In successful:', result.user.uid)
-    const user = result.user
+    const popupErrors = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+    ]
     
-    // Check if user profile exists, if not create it
-    const existingProfile = await getUserProfile(user.uid)
-    if (!existingProfile) {
-      console.log('📝 Creating new user profile...')
-      await createUserProfile(user.uid, {
-        email: user.email,
-        name: user.displayName || 'User',
-        photoURL: user.photoURL,
-      })
-      console.log('✅ User profile created')
+    if (popupErrors.includes(error.code)) {
+      // Popup was blocked or cancelled — redirect flow
+      await signInWithRedirect(auth, provider)
+      return null // AppContext handles result after redirect
     }
     
-    return user
-  } catch (error) {
-    console.error('❌ Google sign-in error:', error)
+    // Translate other errors to Polish-friendly messages
+    console.error('❌ Google sign-in error:', error.code, error.message)
     
-    // User-friendly error messages
-    if (error.code === 'auth/popup-closed-by-user') {
-      throw new Error('Login cancelled')
-    } else if (error.code === 'auth/popup-blocked') {
-      throw new Error('Popup blocked by browser. Please enable popups and try again.')
-    } else if (error.code === 'auth/unauthorized-domain') {
-      throw new Error('This domain is not authorized. Please contact support.')
-    } else if (error.message?.includes('missing initial state')) {
-      throw new Error('Session error. Please try again or use email/password.')
+    if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('Ta domena nie jest autoryzowana w Firebase. Skontaktuj się z supportem.')
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Brak połączenia z internetem. Sprawdź sieć i spróbuj ponownie.')
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Za dużo prób. Poczekaj chwilę i spróbuj ponownie.')
+    } else if (error.message?.includes('missing initial state') || error.message?.includes('COOP')) {
+      // COOP/COEP cross-origin issue — fall back to redirect
+      await signInWithRedirect(auth, provider)
+      return null
     }
     
     throw error
+  }
+}
+
+/**
+ * Ensure user profile exists in Firestore (shared helper)
+ */
+export async function ensureUserProfile(firebaseUser) {
+  try {
+    const existingProfile = await getUserProfile(firebaseUser.uid)
+    if (!existingProfile) {
+      console.log('📝 Creating new user profile...')
+      await createUserProfile(firebaseUser.uid, {
+        email: firebaseUser.email,
+        name: firebaseUser.displayName || 'User',
+        photoURL: firebaseUser.photoURL,
+      })
+      console.log('✅ User profile created')
+    }
+    return firebaseUser
+  } catch (err) {
+    console.warn('⚠️ Could not create/check user profile:', err.message)
+    return firebaseUser
   }
 }
 
