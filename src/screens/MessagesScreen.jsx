@@ -13,8 +13,25 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
   const [searching, setSearching] = useState(false)
   const [starting, setStarting] = useState(null)
   const [startError, setStartError] = useState('')
+  const [modalMaxHeight, setModalMaxHeight] = useState('85dvh')
   const debounceRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Adapt modal height when virtual keyboard opens/closes
+  useEffect(() => {
+    const update = () => {
+      const vh = window.visualViewport?.height ?? window.innerHeight
+      // Leave at least 20px above the modal
+      setModalMaxHeight(`${Math.min(vh - 20, window.innerHeight * 0.92)}px`)
+    }
+    update()
+    window.visualViewport?.addEventListener('resize', update)
+    window.visualViewport?.addEventListener('scroll', update)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update)
+      window.visualViewport?.removeEventListener('scroll', update)
+    }
+  }, [])
 
   useEffect(() => {
     // Delay focus slightly so keyboard doesn't jump immediately
@@ -68,80 +85,80 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-[400px] bg-card rounded-t-[26px] overflow-hidden"
-        style={{ maxHeight: '90vh', paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+        className="w-full max-w-[400px] bg-card rounded-t-[26px] overflow-hidden flex flex-col"
+        style={{ maxHeight: modalMaxHeight, paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
       >
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-2 pb-4">
-          <h2 className="font-poppins font-bold text-lg text-text-dark">New conversation</h2>
+        <div className="flex items-center justify-between px-5 pt-2 pb-4 flex-shrink-0">
+          <h2 className="font-poppins font-bold text-xl text-text-dark">Nowa rozmowa</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-card-2 text-text-gray active:scale-95"
+            className="w-11 h-11 flex items-center justify-center rounded-full bg-card-2 text-text-gray active:scale-95"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Search input — 16px font prevents iOS auto-zoom */}
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-4 flex-shrink-0">
           <div className="flex items-center gap-3 bg-card-2 rounded-2xl px-4 py-4 border border-border">
-            <Search size={18} className="text-text-faint flex-shrink-0" />
+            <Search size={20} className="text-text-faint flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name or email…"
+              placeholder="Szukaj po nazwie lub emailu…"
               style={{ fontSize: '16px' }}
               className="flex-1 bg-transparent font-inter text-text-dark placeholder:text-text-faint outline-none"
             />
-            {searching && <Loader size={16} className="text-text-faint animate-spin flex-shrink-0" />}
+            {searching && <Loader size={18} className="text-text-faint animate-spin flex-shrink-0" />}
           </div>
         </div>
 
         {/* Error */}
         {startError && (
-          <div className="mx-5 mb-3 px-4 py-3 bg-coral/10 rounded-xl">
+          <div className="mx-5 mb-3 px-4 py-3 bg-coral/10 rounded-xl flex-shrink-0">
             <p className="font-inter text-sm text-coral">{startError}</p>
           </div>
         )}
 
-        {/* Results */}
-        <div className="overflow-y-auto px-5 pb-8" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+        {/* Results — scrollable, fills remaining space */}
+        <div className="overflow-y-auto flex-1 px-5 pb-6">
           {searchTerm.trim().length > 0 && searchTerm.trim().length < 2 && (
-            <p className="font-inter text-sm text-text-faint text-center py-6">Type at least 2 characters…</p>
+            <p className="font-inter text-sm text-text-faint text-center py-8">Wpisz co najmniej 2 znaki…</p>
           )}
           {!searching && searchTerm.trim().length >= 2 && results.length === 0 && (
-            <p className="font-inter text-sm text-text-gray text-center py-6">No users found for "{searchTerm}"</p>
+            <p className="font-inter text-sm text-text-gray text-center py-8">Brak wyników dla „{searchTerm}"</p>
           )}
           {results.map((u) => (
             <button
               key={u.uid}
               onClick={() => handleSelect(u)}
               disabled={!!starting}
-              className="w-full flex items-center gap-4 py-4 px-2 rounded-2xl active:bg-card-2 transition-colors text-left disabled:opacity-60 border-b border-border last:border-0"
+              className="w-full flex items-center gap-4 py-5 px-3 rounded-2xl active:bg-card-2 transition-colors text-left disabled:opacity-60 border-b border-border last:border-0"
             >
               {u.photoURL ? (
-                <img src={u.photoURL} alt={u.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+                <img src={u.photoURL} alt={u.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0" />
               ) : (
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center flex-shrink-0">
-                  <User size={24} className="text-bg-dark" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-lime-1 to-lime-2 flex items-center justify-center flex-shrink-0">
+                  <User size={28} className="text-bg-dark" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-poppins font-semibold text-base text-text-dark truncate">{u.name}</p>
+                <p className="font-poppins font-semibold text-lg text-text-dark truncate">{u.name}</p>
                 <p className="font-inter text-sm text-text-gray truncate">{u.email}</p>
               </div>
               {starting === u.uid ? (
-                <Loader size={20} className="text-lime-2 animate-spin flex-shrink-0" />
+                <Loader size={22} className="text-lime-2 animate-spin flex-shrink-0" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-lime-1/20 flex items-center justify-center flex-shrink-0">
-                  <MessageSquare size={16} className="text-lime-2" />
+                <div className="w-10 h-10 rounded-full bg-lime-1/20 flex items-center justify-center flex-shrink-0">
+                  <MessageSquare size={18} className="text-lime-2" />
                 </div>
               )}
             </button>
@@ -192,32 +209,32 @@ function ConversationItem({ conversation, userUid, onClick }) {
             <img 
               src={image} 
               alt={name} 
-              className="w-14 h-14 rounded-full object-cover" 
+              className="w-16 h-16 rounded-full object-cover" 
             />
           ) : (
-            <div className="w-14 h-14 bg-gradient-to-br from-lime-1 to-lime-2 rounded-full flex items-center justify-center">
-              <User size={24} className="text-bg-dark" />
+            <div className="w-16 h-16 bg-gradient-to-br from-lime-1 to-lime-2 rounded-full flex items-center justify-center">
+              <User size={28} className="text-bg-dark" />
             </div>
           )}
           {unread > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-gradient text-bg-dark text-[10px] font-poppins font-bold rounded-full flex items-center justify-center shadow-md">
+            <span className="absolute -top-1 -right-1 w-6 h-6 bg-lime-gradient text-bg-dark text-[10px] font-poppins font-bold rounded-full flex items-center justify-center shadow-md">
               {unread > 9 ? '9+' : unread}
             </span>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex justify-between items-baseline mb-1 gap-2">
-            <p className={`font-inter text-sm truncate ${unread > 0 ? 'font-bold text-text-dark' : 'font-semibold text-text-dark'}`}>
+          <div className="flex justify-between items-baseline mb-1.5 gap-2">
+            <p className={`font-inter text-base truncate ${unread > 0 ? 'font-bold text-text-dark' : 'font-semibold text-text-dark'}`}>
               {name}
             </p>
             {time && (
-              <span className="font-inter text-[10px] text-text-faint flex-shrink-0">
+              <span className="font-inter text-xs text-text-faint flex-shrink-0">
                 {time}
               </span>
             )}
           </div>
-          <p className={`font-inter text-xs truncate ${unread > 0 ? 'text-text-dark font-medium' : 'text-text-gray'}`}>
-            {lastMsg?.text || 'No messages yet'}
+          <p className={`font-inter text-sm truncate ${unread > 0 ? 'text-text-dark font-medium' : 'text-text-gray'}`}>
+            {lastMsg?.text || 'Brak wiadomości'}
           </p>
         </div>
       </div>

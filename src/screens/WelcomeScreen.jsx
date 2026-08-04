@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff, X } from 'lucide-react'
+import { Heart, MessageCircle, MapPin, Bell, Mail, Lock, Eye, EyeOff, X, Zap } from 'lucide-react'
 import { loginUser, registerUser, loginWithGoogle, resetPassword } from '../firebase/services'
 import { isNativePlatform } from '../utils/platform'
 import DarkHeader from '../components/DarkHeader'
@@ -8,12 +8,16 @@ import WhiteCard from '../components/WhiteCard'
 import Button from '../components/Button'
 
 const IS_NATIVE = isNativePlatform()
+const SAVED_EMAIL_KEY = 'paway_last_email'
+const DEV_EMAIL = import.meta.env.VITE_DEV_EMAIL || ''
+const DEV_PASSWORD = import.meta.env.VITE_DEV_PASSWORD || ''
 
 export default function WelcomeScreen() {
   const { navigate, setUser, t, lang, setLang } = useApp()
   const [mode, setMode] = useState('welcome')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem(SAVED_EMAIL_KEY) || '')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem(SAVED_EMAIL_KEY))
   const [name, setName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -30,9 +34,13 @@ export default function WelcomeScreen() {
     try {
       if (mode === 'login') {
         const cred = await loginUser(email, password)
+        if (rememberMe) localStorage.setItem(SAVED_EMAIL_KEY, email)
+        else localStorage.removeItem(SAVED_EMAIL_KEY)
         setUser({ uid: cred.user.uid, name: cred.user.displayName || 'User', email: cred.user.email })
       } else if (mode === 'register') {
         const cred = await registerUser(email, password, name)
+        if (rememberMe) localStorage.setItem(SAVED_EMAIL_KEY, email)
+        else localStorage.removeItem(SAVED_EMAIL_KEY)
         setUser({ uid: cred.uid, name, email })
       }
       navigate('home')
@@ -79,6 +87,26 @@ export default function WelcomeScreen() {
       phone: '+48 123 456 789'
     })
     navigate('home')
+  }
+
+  // Quick dev login with real Firebase credentials from .env
+  const handleDevLogin = async () => {
+    if (!DEV_EMAIL || !DEV_PASSWORD) {
+      handleTestLogin()
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      const cred = await loginUser(DEV_EMAIL, DEV_PASSWORD)
+      setUser({ uid: cred.user.uid, name: cred.user.displayName || 'Dev User', email: cred.user.email })
+      navigate('home')
+    } catch {
+      // Fallback to offline test user
+      handleTestLogin()
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Password strength indicator
@@ -208,35 +236,16 @@ export default function WelcomeScreen() {
               {loading ? 'Logging in...' : 'Log In'}
             </Button>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-card px-2 text-text-gray font-inter">or</span>
-              </div>
-            </div>
-
-            {IS_NATIVE ? (
-              <p className="text-center font-inter text-xs text-text-faint pb-2">
-                Google Sign-In is available on the web version only.
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Remember me */}
+            <label className="flex items-center gap-3 cursor-pointer select-none mt-3">
+              <div
+                onClick={() => setRememberMe(v => !v)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${rememberMe ? 'bg-lime-2 border-lime-2' : 'bg-card-2 border-border'}`}
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
-                  <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
-                  <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
-                  <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
-                </svg>
-                Continue with Google
-              </button>
-            )}
+                {rememberMe && <span className="text-bg-dark text-[10px] font-bold leading-none">✓</span>}
+              </div>
+              <span className="font-inter text-sm text-text-gray">Zapamiętaj email</span>
+            </label>
 
             <button
               type="button"
@@ -245,6 +254,33 @@ export default function WelcomeScreen() {
             >
               Don't have an account? <span className="text-lime-2 font-semibold">Sign Up</span>
             </button>
+
+            {!IS_NATIVE && (
+              <>
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-text-gray font-inter">or</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
+                    <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
+                    <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
+                    <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
+                  </svg>
+                  Continue with Google
+                </button>
+              </>
+            )}
           </form>
         </WhiteCard>
       </div>
@@ -364,34 +400,31 @@ export default function WelcomeScreen() {
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-card px-2 text-text-gray font-inter">or</span>
-              </div>
-            </div>
-
-            {IS_NATIVE ? (
-              <p className="text-center font-inter text-xs text-text-faint pb-2">
-                Google Sign-In is available on the web version only.
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
-                  <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
-                  <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
-                  <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
-                </svg>
-                Continue with Google
-              </button>
+            {!IS_NATIVE && (
+              <>
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-text-gray font-inter">or</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-card-2 rounded-xl font-inter text-sm font-semibold text-text-dark flex items-center justify-center gap-3 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M19.8 10.2273C19.8 9.51819 19.7364 8.83637 19.6182 8.18182H10V12.05H15.4818C15.2273 13.3 14.4636 14.3591 13.3182 15.0682V17.5773H16.7091C18.7091 15.7364 19.8 13.2182 19.8 10.2273Z" fill="#4285F4"/>
+                    <path d="M10 20C12.7 20 14.9636 19.1045 16.7091 17.5773L13.3182 15.0682C12.3545 15.6682 11.1455 16.0227 10 16.0227C7.39545 16.0227 5.19091 14.1636 4.36364 11.7364H0.854546V14.3318C2.59091 17.7955 6.04545 20 10 20Z" fill="#34A853"/>
+                    <path d="M4.36364 11.7364C4.14545 11.1364 4.02273 10.4818 4.02273 9.99997C4.02273 9.51815 4.14545 8.86361 4.36364 8.26361V5.66815H0.854546C0.309091 6.75906 0 7.93633 0 9.99997C0 12.0636 0.309091 13.2409 0.854546 14.3318L4.36364 11.7364Z" fill="#FBBC05"/>
+                    <path d="M10 3.97727C11.2682 3.97727 12.4091 4.41818 13.3045 5.2727L16.3318 2.24545C14.9591 0.981818 12.6955 0 10 0C6.04545 0 2.59091 2.20455 0.854546 5.66818L4.36364 8.26364C5.19091 5.83636 7.39545 3.97727 10 3.97727Z" fill="#EA4335"/>
+                  </svg>
+                  Continue with Google
+                </button>
+              </>
             )}
           </form>
         </WhiteCard>
@@ -509,10 +542,12 @@ export default function WelcomeScreen() {
         
         {/* DEV ONLY */}
         <button
-          onClick={handleTestLogin}
-          className="w-full text-xs text-text-faint/50 hover:text-text-faint transition-colors pt-2"
+          onClick={handleDevLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border text-text-faint font-inter text-sm active:scale-95 transition-all hover:border-lime-2 hover:text-lime-2 disabled:opacity-40"
         >
-          Dev: Skip Login →
+          <Zap size={14} />
+          Dev: szybkie logowanie
         </button>
       </div>
       

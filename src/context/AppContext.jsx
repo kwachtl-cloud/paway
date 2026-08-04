@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect } 
 import { translations } from '../data/translations'
 import { initializeBackButtonHandler, removeBackButtonHandler } from '../utils/backButton'
 import { initializePushNotifications, setupPushNotificationListeners, removePushNotificationListeners } from '../utils/pushNotifications'
-import { updateUserFCMToken, updateUserLocation, ensureUserProfile } from '../firebase/services'
+import { updateUserFCMToken, updateUserLocation, ensureUserProfile, getGoogleRedirectResult } from '../firebase/services'
 import { getCurrentPosition } from '../utils/geolocation'
 
 const AppContext = createContext()
@@ -28,6 +28,9 @@ export function AppProvider({ children }) {
         const { auth } = await import('../firebase/firebase')
         const { onAuthStateChanged } = await import('firebase/auth')
 
+        // Pick up any pending Google redirect result first
+        getGoogleRedirectResult().catch((e) => console.warn('redirect result check failed:', e))
+
         unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
           if (firebaseUser) {
             console.log('🔑 Firebase user authenticated:', firebaseUser.uid)
@@ -38,7 +41,7 @@ export function AppProvider({ children }) {
               photoURL: firebaseUser.photoURL || null
             })
             setCurrentScreen(prev => prev === 'welcome' ? 'home' : prev)
-            setActiveTab(prev => ['home', 'messages', 'pet-passport', 'profile'].includes(prev) ? prev : 'home')
+            setActiveTab(prev => ['home', 'park-radar', 'pet-passport', 'profile'].includes(prev) ? prev : 'home')
           } else {
             console.log('🔑 No Firebase user, redirecting to welcome')
             setUser(null)
@@ -67,7 +70,7 @@ export function AppProvider({ children }) {
     setCurrentScreen(screen)
     
     // Update activeTab if navigating to a main tab screen
-    const mainTabs = ['home', 'messages', 'pet-passport', 'profile']
+    const mainTabs = ['home', 'park-radar', 'pet-passport', 'profile']
     if (mainTabs.includes(screen)) {
       setActiveTab(screen)
     }

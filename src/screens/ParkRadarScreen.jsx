@@ -533,17 +533,26 @@ export default function ParkRadarScreen() {
           <div className="pt-48 px-4 space-y-3 pb-20">
             {/* Hazard Filter Toggle */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-poppins font-semibold text-text-dark">Nearby Places</h3>
-              <button
-                onClick={() => setShowHazards(!showHazards)}
-                className={`px-4 py-2 rounded-full shadow-md active:scale-95 transition-all font-poppins font-semibold text-sm ${
-                  showHazards 
-                    ? 'bg-coral text-white' 
-                    : 'bg-card-2 text-text-gray'
-                }`}
-              >
-                ⚠️ Ostrzeżenia ({hazards.length})
-              </button>
+              <h3 className="font-poppins font-semibold text-text-dark text-base">Miejsca w pobliżu</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode('map')}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal/10 active:scale-95 transition-transform"
+                >
+                  <MapIcon size={15} className="text-teal" />
+                  <span className="font-inter text-xs font-semibold text-teal">Pokaż mapę</span>
+                </button>
+                <button
+                  onClick={() => setShowHazards(!showHazards)}
+                  className={`px-3 py-2 rounded-xl active:scale-95 transition-all font-inter font-semibold text-xs ${
+                    showHazards 
+                      ? 'bg-coral text-white' 
+                      : 'bg-card-2 text-text-gray'
+                  }`}
+                >
+                  ⚠️ {hazards.length}
+                </button>
+              </div>
             </div>
             
             {/* Report Hazard Button */}
@@ -619,23 +628,36 @@ export default function ParkRadarScreen() {
                 
                 {selectedPlace?.id === place.id && (
                   <div className="mt-4 pt-4 border-t border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <StatusPill color="lime">
                           <Users size={14} />
                           <span className="ml-1">{activeCheckins.length} psów tu teraz</span>
                         </StatusPill>
                       </div>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleCheckInClick()
-                        }}
-                      >
-                        Check In
-                      </Button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Open in Google Maps */}
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${place.location.lat},${place.location.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card-2 border border-border active:scale-95 transition-transform"
+                        >
+                          <MapPin size={15} className="text-teal flex-shrink-0" />
+                          <span className="font-inter text-xs font-semibold text-text-dark">Mapa</span>
+                        </a>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCheckInClick()
+                          }}
+                        >
+                          Check In
+                        </Button>
+                      </div>
                     </div>
                     
                     {activeCheckins.length > 0 && (

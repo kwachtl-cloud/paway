@@ -26,6 +26,8 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth'
 
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
@@ -146,9 +148,6 @@ export async function loginWithGoogle() {
 
   console.log('🔐 Starting Google Sign-In (popup)...')
 
-  // Always use signInWithPopup — avoids the "missing initial state" error
-  // that signInWithRedirect causes in Capacitor WebViews and browsers with
-  // storage partitioning (sessionStorage inaccessible after redirect).
   try {
     const result = await signInWithPopup(auth, provider)
     console.log('✅ Google popup sign-in successful:', result.user.uid)
@@ -157,19 +156,44 @@ export async function loginWithGoogle() {
   } catch (error) {
     console.error('❌ Google sign-in error:', error.code, error.message)
 
-    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+    // If popup is blocked, fall back to redirect
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/popup-blocked') {
+        console.log('🔄 Popup blocked, trying redirect...')
+        await signInWithRedirect(auth, provider)
+        // Page will reload after redirect; getRedirectResult is handled in AppContext
+        return null
+      }
       throw new Error('Logowanie anulowane. Spróbuj ponownie.')
-    } else if (error.code === 'auth/popup-blocked') {
-      throw new Error('Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okna i spróbuj ponownie.')
     } else if (error.code === 'auth/unauthorized-domain') {
-      throw new Error('Ta domena nie jest autoryzowana w Firebase. Skontaktuj się z supportem.')
+      throw new Error('Ta domena nie jest autoryzowana w Firebase. Dodaj ją w Firebase Console → Authentication → Settings → Authorized domains.')
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Brak połączenia z internetem. Sprawdź sieć i spróbuj ponownie.')
     } else if (error.code === 'auth/too-many-requests') {
       throw new Error('Za dużo prób. Poczekaj chwilę i spróbuj ponownie.')
+    } else if (error.code === 'auth/operation-not-allowed') {
+      throw new Error('Logowanie przez Google jest wyłączone w Firebase Console. Włącz je w Authentication → Sign-in method.')
     }
 
     throw error
+  }
+}
+
+/**
+ * Pick up the result of a Google redirect sign-in (called once on app start).
+ */
+export async function getGoogleRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth)
+    if (result?.user) {
+      console.log('✅ Google redirect sign-in successful:', result.user.uid)
+      await ensureUserProfile(result.user)
+      return result.user
+    }
+    return null
+  } catch (error) {
+    console.warn('⚠️ getRedirectResult error:', error.code, error.message)
+    return null
   }
 }
 
