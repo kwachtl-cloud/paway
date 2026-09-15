@@ -1,6 +1,5 @@
 import { useApp } from './context/AppContext'
 import BottomNav from './components/BottomNav'
-import FloatingSOSButton from './components/FloatingSOSButton'
 import OnboardingModal from './components/OnboardingModal'
 import WelcomeScreen from './screens/WelcomeScreen'
 import HomeScreen from './screens/HomeScreen'
@@ -107,14 +106,10 @@ function App() {
   // Show bottom nav on all screens except welcome
   const showBottomNav = !['welcome'].includes(currentScreen) && user
   
-  // Show floating SOS button on main screens (not on SOS screen itself or welcome)
-  const showSOSButton = !['sos', 'sos-detail', 'welcome', 'notifications'].includes(currentScreen) && user
-
   return (
     <>
       {renderScreen()}
       {showBottomNav && <BottomNav />}
-      {showSOSButton && <FloatingSOSButton />}
       {user && <OnboardingModal />}
     </>
   )

@@ -4,7 +4,6 @@ import { getUserConversations, getUserProfile, subscribeToConversation, searchUs
 import { MessageSquare, User, Plus, X, Search, Loader } from 'lucide-react'
 import DarkHeader from '../components/DarkHeader'
 import WhiteCard from '../components/WhiteCard'
-import Card from '../components/Card'
 
 // ── New Chat Modal ────────────────────────────────────────────────────────────
 function NewChatModal({ currentUid, onClose, onStartChat }) {
@@ -199,21 +198,20 @@ function ConversationItem({ conversation, userUid, onClick }) {
     : ''
 
   return (
-    <Card
+    <button
       onClick={() => onClick(liveConv.id)}
-      className="cursor-pointer hover:border-lime-2 transition-colors"
+      className="w-full flex items-center gap-3 px-5 py-3 text-left border-b border-border last:border-0 active:bg-card-2/70 transition-colors"
     >
-      <div className="flex items-center gap-4">
         <div className="relative flex-shrink-0">
           {image ? (
             <img 
               src={image} 
               alt={name} 
-              className="w-16 h-16 rounded-full object-cover" 
+              className="w-12 h-12 rounded-[14px] object-cover" 
             />
           ) : (
-            <div className="w-16 h-16 bg-gradient-to-br from-lime-1 to-lime-2 rounded-full flex items-center justify-center">
-              <User size={28} className="text-bg-dark" />
+            <div className="w-12 h-12 bg-gradient-to-br from-amber to-amber/75 rounded-[14px] flex items-center justify-center">
+              <User size={21} className="text-bg-dark" />
             </div>
           )}
           {unread > 0 && (
@@ -224,7 +222,7 @@ function ConversationItem({ conversation, userUid, onClick }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-baseline mb-1.5 gap-2">
-            <p className={`font-inter text-base truncate ${unread > 0 ? 'font-bold text-text-dark' : 'font-semibold text-text-dark'}`}>
+            <p className={`font-inter text-[13px] truncate ${unread > 0 ? 'font-bold text-text-dark' : 'font-semibold text-text-dark'}`}>
               {name}
             </p>
             {time && (
@@ -233,12 +231,11 @@ function ConversationItem({ conversation, userUid, onClick }) {
               </span>
             )}
           </div>
-          <p className={`font-inter text-sm truncate ${unread > 0 ? 'text-text-dark font-medium' : 'text-text-gray'}`}>
+          <p className={`font-inter text-[11.5px] truncate ${unread > 0 ? 'text-text-dark font-medium' : 'text-text-gray'}`}>
             {lastMsg?.text || 'Brak wiadomości'}
           </p>
         </div>
-      </div>
-    </Card>
+    </button>
   )
 }
 
@@ -268,24 +265,33 @@ export default function MessagesScreen() {
   return (
     <div className="min-h-screen bg-bg-dark pb-24">
       <DarkHeader
-        title="Messages"
+        title="Wiadomości"
         onBack={goBack}
       >
         <div className="px-4 pb-4 pt-2 flex items-center justify-between">
           <p className="font-inter text-sm text-text-gray">
-            {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
+            {conversations.length} {conversations.length === 1 ? 'rozmowa' : 'rozmów'}
           </p>
           <button
             onClick={() => setShowNewChat(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lime-gradient text-bg-dark font-poppins font-semibold text-xs active:scale-95 transition-transform"
           >
             <Plus size={14} strokeWidth={3} />
-            New chat
+            Nowa rozmowa
           </button>
         </div>
       </DarkHeader>
 
-      <WhiteCard>
+      <WhiteCard className="px-0 pt-4">
+        {!loading && conversations.length > 0 && (
+          <>
+            <div className="mx-5 mb-4 flex items-center gap-2 rounded-xl bg-card-2 px-3 py-2.5 text-text-faint">
+              <Search size={16} />
+              <span className="font-inter text-xs">Szukaj rozmów i opiekunów</span>
+            </div>
+            <p className="px-5 pb-2 font-inter text-[10px] font-bold uppercase tracking-[0.12em] text-text-gray">Twoje rozmowy</p>
+          </>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <p className="font-inter text-text-gray">{t('loading')}</p>
@@ -310,7 +316,7 @@ export default function MessagesScreen() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div>
             {conversations.map((conv) => (
               <ConversationItem
                 key={conv.id}

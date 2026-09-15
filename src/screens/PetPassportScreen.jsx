@@ -399,7 +399,7 @@ export default function PetPassportScreen() {
   return (
     <div className="min-h-screen bg-bg-dark pb-24">
       <DarkHeader 
-        title={showAddForm ? (editingPet ? 'Edit Pet' : 'Add New Pet') : 'Pet Passport'}
+        title={showAddForm ? (editingPet ? 'Edytuj pupila' : 'Dodaj pupila') : 'Zdrowie'}
         onBack={showAddForm ? () => { setShowAddForm(false); resetForm() } : goBack}
         rightAction={
           !showAddForm && pets.length > 0 && (
@@ -424,16 +424,16 @@ export default function PetPassportScreen() {
                   // Simple cycling through pets
                   setSelectedPetIndex((selectedPetIndex + 1) % pets.length)
                 }}
-                className="w-full bg-card-2/10 hover:bg-card-2/20 border border-card-2/20 rounded-2xl p-4 flex items-center gap-4 transition-colors"
+                className="w-full bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 rounded-2xl p-3 flex items-center gap-3 transition-colors"
               >
                 {selectedPet?.photos?.[0] ? (
                   <img
                     src={selectedPet.photos[0]}
                     alt={selectedPet.name}
-                    className="w-14 h-14 rounded-xl object-cover"
+                    className="w-14 h-14 rounded-2xl object-cover"
                   />
                 ) : (
-                  <div className="w-14 h-14 bg-lime-gradient rounded-xl flex items-center justify-center text-2xl">
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber to-amber/75 rounded-2xl flex items-center justify-center text-2xl">
                     {selectedPet?.species === 'dog' ? '🐕' : selectedPet?.species === 'cat' ? '🐱' : '🐾'}
                   </div>
                 )}
@@ -453,7 +453,7 @@ export default function PetPassportScreen() {
       <WhiteCard>
         {/* Add/Edit Pet Form */}
         {showAddForm ? (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
               <h3 className="font-poppins font-semibold text-lg text-text-dark mb-1">
                 {editingPet ? 'Update Pet Info' : 'Add Your Pet'}
@@ -683,7 +683,7 @@ export default function PetPassportScreen() {
                   <img
                     src={selectedPet.photos[0]}
                     alt={selectedPet.name}
-                    className="w-full h-48 rounded-2xl object-cover"
+                    className="w-full h-40 rounded-[20px] object-cover"
                   />
                   {selectedPet.photos.length > 1 && (
                     <div className="flex gap-2 mt-2">
@@ -706,7 +706,7 @@ export default function PetPassportScreen() {
                   )}
                 </div>
               ) : (
-                <div className="w-full h-48 bg-lime-gradient rounded-2xl flex items-center justify-center mb-4">
+                <div className="w-full h-40 bg-gradient-to-br from-amber to-amber/75 rounded-[20px] flex items-center justify-center mb-4">
                   <span className="text-6xl">
                     {selectedPet.species === 'dog' ? '🐕' : selectedPet.species === 'cat' ? '🐱' : '🐾'}
                   </span>
@@ -715,7 +715,10 @@ export default function PetPassportScreen() {
               
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="font-poppins font-bold text-2xl text-text-dark">{selectedPet.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-poppins font-bold text-2xl text-text-dark">{selectedPet.name}</h2>
+                    <StatusPill color="teal">W normie</StatusPill>
+                  </div>
                   <p className="font-inter text-sm text-text-gray">
                     {selectedPet.breed || (selectedPet.species === 'dog' ? 'Dog' : selectedPet.species === 'cat' ? 'Cat' : 'Pet')}
                     {selectedPet.age && ` • ${selectedPet.age} years old`}
@@ -743,27 +746,27 @@ export default function PetPassportScreen() {
             {/* Basic Info Grid */}
             <div>
               <h3 className="font-poppins font-semibold text-base text-text-dark mb-3">
-                Basic Info
+                Podstawowe dane
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 {selectedPet.weight && (
-                  <Card>
-                    <p className="font-inter text-xs text-text-gray mb-1">Weight</p>
+                  <Card className="bg-card-2 border-0">
+                    <p className="font-inter text-xs text-text-gray mb-1">Waga</p>
                     <p className="font-inter text-base font-semibold text-text-dark">{selectedPet.weight} kg</p>
                   </Card>
                 )}
                 {selectedPet.gender && (
-                  <Card>
-                    <p className="font-inter text-xs text-text-gray mb-1">Gender</p>
+                  <Card className="bg-card-2 border-0">
+                    <p className="font-inter text-xs text-text-gray mb-1">Płeć</p>
                     <p className="font-inter text-base font-semibold text-text-dark">
                       {selectedPet.gender === 'male' ? '♂️ Male' : '♀️ Female'}
                     </p>
                   </Card>
                 )}
                 {selectedPet.chipNumber && (
-                  <Card className="col-span-2">
+                  <Card className="col-span-2 bg-card-2 border-0">
                     <p className="font-inter text-xs text-text-gray mb-1">
-                      <Hash size={12} className="inline" /> Chip Number
+                      <Hash size={12} className="inline" /> Numer chipa
                     </p>
                     <p className="font-inter text-sm font-mono font-semibold text-text-dark break-all">
                       {selectedPet.chipNumber}
@@ -777,7 +780,7 @@ export default function PetPassportScreen() {
             {selectedPet.behaviorTags && selectedPet.behaviorTags.length > 0 && (
               <div>
                 <h3 className="font-poppins font-semibold text-base text-text-dark mb-3">
-                  Behavior
+                  O {selectedPet.name}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {selectedPet.behaviorTags.map(tag => {
@@ -796,7 +799,7 @@ export default function PetPassportScreen() {
             {selectedPet.medicalInfo && (
               <div>
                 <h3 className="font-poppins font-semibold text-base text-text-dark mb-3">
-                  Medical Information
+                  Notatki medyczne
                 </h3>
                 <Card className="bg-amber/5 border-amber/20">
                   <div className="flex items-start gap-3">
@@ -814,7 +817,7 @@ export default function PetPassportScreen() {
             {/* QR Code Section */}
             <div>
               <h3 className="font-poppins font-semibold text-base text-text-dark mb-3">
-                Digital ID
+                Dokumenty pupila
               </h3>
               <div className="flex gap-3">
                 <Button
@@ -853,7 +856,7 @@ export default function PetPassportScreen() {
                   return (
                     <Card 
                       onClick={() => handleOpenReminderModal('vaccination', selectedPet.medicalReminders?.vaccination)}
-                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                      className="bg-card border-border cursor-pointer active:scale-[0.98] transition-transform"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -879,7 +882,7 @@ export default function PetPassportScreen() {
                   return (
                     <Card 
                       onClick={() => handleOpenReminderModal('deworming', selectedPet.medicalReminders?.deworming)}
-                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                      className="bg-card border-border cursor-pointer active:scale-[0.98] transition-transform"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -905,7 +908,7 @@ export default function PetPassportScreen() {
                   return (
                     <Card 
                       onClick={() => handleOpenReminderModal('ticksFleas', selectedPet.medicalReminders?.ticksFleas)}
-                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                      className="bg-card border-border cursor-pointer active:scale-[0.98] transition-transform"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">

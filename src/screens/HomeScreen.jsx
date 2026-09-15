@@ -123,6 +123,7 @@ export default function HomeScreen() {
       icon: MapPin, 
       label: 'Places',
       color: 'teal',
+      surface: 'rgba(63, 184, 168, 0.12)',
       screen: 'park-radar'
     },
     { 
@@ -130,6 +131,7 @@ export default function HomeScreen() {
       icon: Users, 
       label: 'Community',
       color: 'blue-1',
+      surface: 'rgba(124, 140, 240, 0.12)',
       screen: 'messages'
     },
     { 
@@ -137,6 +139,7 @@ export default function HomeScreen() {
       icon: AlertCircle, 
       label: 'SOS',
       color: 'coral',
+      surface: 'rgba(255, 122, 107, 0.12)',
       screen: 'sos'
     },
     { 
@@ -144,6 +147,7 @@ export default function HomeScreen() {
       icon: Calendar, 
       label: 'Events',
       color: 'amber',
+      surface: 'rgba(242, 169, 59, 0.12)',
       screen: 'pet-passport'
     },
   ]
@@ -165,7 +169,7 @@ export default function HomeScreen() {
         <div className="px-4 pb-6 pt-2">
           <button
             onClick={() => setShowPetSelector(!showPetSelector)}
-            className="flex items-center gap-3 bg-bg-darker rounded-2xl px-4 py-3 w-full active:scale-98 transition-transform"
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 w-full active:scale-98 transition-transform border border-white/5 bg-white/[0.05]"
           >
             {selectedPet ? (
               <>
@@ -238,9 +242,15 @@ export default function HomeScreen() {
       <WhiteCard>
         {/* Quick Actions */}
         <div className="mb-8">
-          <h3 className="font-poppins font-semibold text-text-dark text-base mb-4">
-            Quick Actions
-          </h3>
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <p className="font-inter text-[10px] uppercase tracking-[0.14em] font-bold text-text-faint mb-1">Dla {selectedPet?.name || 'Twojego pupila'}</p>
+              <h3 className="font-poppins font-semibold text-text-dark text-base">
+                Szybkie akcje
+              </h3>
+            </div>
+            <span className="pill pill-lime">Dzisiaj</span>
+          </div>
           <div className="grid grid-cols-4 gap-3">
             {quickActions.map(action => {
               const Icon = action.icon
@@ -252,7 +262,7 @@ export default function HomeScreen() {
                 >
                   <div 
                     className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                    style={{ backgroundColor: `rgba(var(--${action.color}-rgb, 128, 128, 128), 0.12)` }}
+                    style={{ backgroundColor: action.surface }}
                   >
                     <Icon size={24} style={{ color: `var(--${action.color})` }} />
                   </div>
