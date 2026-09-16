@@ -1,28 +1,65 @@
 import { useApp } from '../context/AppContext'
 import { Heart, MapPin, Star } from 'lucide-react'
-import { mockProviders } from '../data/mockData'
-import { useState } from 'react'
+import { getUserFavorites, addFavorite, removeFavorite } from '../firebase/services'
+import { useState, useEffect } from 'react'
 
 export default function SavedScreen() {
-  const { t, navigate } = useApp()
-  const [savedIds, setSavedIds] = useState(new Set(mockProviders.slice(0, 2).map(p => p.id)))
+  const { t, navigate, user } = useApp()
+  const [savedProviders, setSavedProviders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [togglingId, setTogglingId] = useState(null)
 
-  const savedProviders = mockProviders.filter(p => savedIds.has(p.id))
+  useEffect(() => {
+    loadFavorites()
+  }, [user])
 
-  const toggleSave = (id) => {
-    setSavedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const loadFavorites = async () => {
+    if (!user?.uid) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      const providers = await getUserFavorites(user.uid)
+      setSavedProviders(providers)
+    } catch (error) {
+      console.error('Error loading favorites:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleSave = async (id) => {
+    if (!user?.uid || togglingId) return
+
+    setTogglingId(id)
+    try {
+      const isSaved = savedProviders.some(p => p.id === id)
+      if (isSaved) {
+        await removeFavorite(user.uid, id)
+        setSavedProviders(prev => prev.filter(p => p.id !== id))
+      } else {
+        await addFavorite(user.uid, id)
+        await loadFavorites()
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      alert('Failed to update favorite')
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   return (
     <div className="px-6 pt-8 pb-32 bg-background min-h-screen animate-fade-in">
       <h1 className="text-heading text-foreground mb-8">{t('saved')}</h1>
 
-      {savedProviders.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16">
+          <p className="text-muted-foreground">{t('loading')}</p>
+        </div>
+      ) : savedProviders.length === 0 ? (
         <div className="text-center py-16">
           <Heart size={48} className="text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground text-lg">{t('noSavedProviders')}</p>
@@ -52,13 +89,14 @@ export default function SavedScreen() {
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2">
                   <MapPin size={12} />
-                  <span className="truncate">{provider.location}</span>
+                  <span className="truncate">{provider.location?.address || provider.location || 'Location'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-primary font-semibold text-sm">${provider.price}/night</p>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleSave(provider.id) }}
-                    className="w-8 h-8 bg-card/90 rounded-full flex items-center justify-center border border-border"
+                    disabled={togglingId === provider.id}
+                    className="w-8 h-8 bg-card/90 rounded-full flex items-center justify-center border border-border disabled:opacity-50"
                   >
                     <Heart size={14} className="text-red-500 fill-red-500" />
                   </button>
