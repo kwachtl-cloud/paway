@@ -12,7 +12,7 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
   const [searching, setSearching] = useState(false)
   const [starting, setStarting] = useState(null)
   const [startError, setStartError] = useState('')
-  const [modalMaxHeight, setModalMaxHeight] = useState('85dvh')
+  const [modalMaxHeight, setModalMaxHeight] = useState('60dvh')
   const debounceRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -128,16 +128,21 @@ function NewChatModal({ currentUid, onClose, onStartChat }) {
         )}
 
         {/* Results — scrollable, fills remaining space */}
-        <div className="overflow-y-auto flex-1 px-5 pb-6">
+        <div className="overflow-y-auto flex-1 px-5 pb-2">
           {searchTerm.trim().length > 0 && searchTerm.trim().length < 2 && (
             <p className="font-inter text-sm text-text-faint text-center py-8">Wpisz co najmniej 2 znaki…</p>
           )}
           {!searching && searchTerm.trim().length >= 2 && results.length === 0 && (
             <p className="font-inter text-sm text-text-gray text-center py-8">Brak wyników dla „{searchTerm}"</p>
           )}
-          {results.map((u) => (
+          {results.map((u, idx) => (
             <button
               key={u.uid}
+              ref={idx === results.length - 1 ? el => {
+                if (el && searchTerm && results.length > 3) {
+                  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
+                }
+              } : null}
               onClick={() => handleSelect(u)}
               disabled={!!starting}
               className="w-full flex items-center gap-4 py-5 px-3 rounded-2xl active:bg-card-2 transition-colors text-left disabled:opacity-60 border-b border-border last:border-0"
