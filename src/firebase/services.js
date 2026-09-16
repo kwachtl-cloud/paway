@@ -1759,3 +1759,54 @@ export async function sendFeedback(feedbackData) {
     throw error
   }
 }
+
+// === FAVORITES ===
+
+export async function addFavorite(userId, providerId) {
+  if (!userId || !providerId) throw new Error('userId and providerId required')
+
+  try {
+    const favRef = doc(db, 'users', userId, 'favorites', providerId)
+    await setDoc(favRef, {
+      providerId,
+      addedAt: serverTimestamp(),
+    })
+    console.log('✅ Added to favorites:', providerId)
+  } catch (error) {
+    console.error('❌ Error adding favorite:', error)
+    throw error
+  }
+}
+
+export async function removeFavorite(userId, providerId) {
+  if (!userId || !providerId) throw new Error('userId and providerId required')
+
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'favorites', providerId))
+    console.log('✅ Removed from favorites:', providerId)
+  } catch (error) {
+    console.error('❌ Error removing favorite:', error)
+    throw error
+  }
+}
+
+export async function getUserFavorites(userId) {
+  if (!userId) throw new Error('userId required')
+
+  try {
+    const favSnap = await getDocs(collection(db, 'users', userId, 'favorites'))
+    const favoriteIds = favSnap.docs.map(d => d.id)
+
+    if (favoriteIds.length === 0) return []
+
+    // Fetch provider details for each favorite
+    const providers = await Promise.all(
+      favoriteIds.map(id => getService(id))
+    )
+
+    return providers.filter(p => p !== null)
+  } catch (error) {
+    console.error('❌ Error fetching favorites:', error)
+    return []
+  }
+}

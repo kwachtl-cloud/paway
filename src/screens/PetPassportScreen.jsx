@@ -450,7 +450,7 @@ export default function PetPassportScreen() {
         )}
       </DarkHeader>
       
-      <WhiteCard>
+      <WhiteCard className={pets.length > 0 && !showAddForm ? '-mt-6' : ''}>
         {/* Add/Edit Pet Form */}
         {showAddForm ? (
           <div className="space-y-5">
@@ -651,15 +651,19 @@ export default function PetPassportScreen() {
           </div>
         ) : pets.length === 0 ? (
           // Empty State
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-lime-gradient rounded-full flex items-center justify-center mx-auto mb-6">
-              <PawPrint size={32} className="text-bg-dark" />
+          <div className="min-h-[58svh] flex flex-col items-center justify-center text-center pb-16">
+            <div className="relative mb-7">
+              <div className="absolute inset-0 scale-125 rounded-full bg-lime-1/20 blur-2xl" />
+              <div className="relative w-24 h-24 bg-lime-gradient rounded-[28px] flex items-center justify-center shadow-glow rotate-3">
+                <PawPrint size={42} className="text-bg-dark -rotate-3" />
+              </div>
             </div>
-            <h3 className="font-poppins font-semibold text-lg text-text-dark mb-2">
-              No Pets Yet
+            <p className="font-inter text-[10px] uppercase tracking-[0.16em] font-bold text-teal mb-2">Zdrowie i dokumenty</p>
+            <h3 className="font-poppins font-bold text-xl text-text-dark mb-2">
+              Dodaj pierwszego pupila
             </h3>
-            <p className="font-inter text-sm text-text-gray mb-8 max-w-xs mx-auto">
-              Add your first pet to get started with their health records
+            <p className="font-inter text-[13px] leading-5 text-text-gray mb-8 max-w-[250px]">
+              Zapisuj zdrowie, szczepienia i najważniejsze informacje w jednym miejscu.
             </p>
             <Button
               variant="primary"
@@ -670,8 +674,9 @@ export default function PetPassportScreen() {
               className="mx-auto"
             >
               <Plus size={18} className="mr-2" />
-              Add Your First Pet
+              Dodaj pupila
             </Button>
+            <p className="mt-4 font-inter text-[11px] text-text-faint">Zajmie mniej niż minutę</p>
           </div>
         ) : selectedPet && (
           // Pet Details View

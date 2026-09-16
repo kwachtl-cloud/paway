@@ -282,7 +282,7 @@ export default function MessagesScreen() {
         </div>
       </DarkHeader>
 
-      <WhiteCard className="px-0 pt-4">
+      <WhiteCard className="edge-to-edge">
         {!loading && conversations.length > 0 && (
           <>
             <div className="mx-5 mb-4 flex items-center gap-2 rounded-xl bg-card-2 px-3 py-2.5 text-text-faint">
@@ -297,22 +297,26 @@ export default function MessagesScreen() {
             <p className="font-inter text-text-gray">{t('loading')}</p>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-blue-1/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MessageSquare size={32} className="text-blue-1" />
+          <div className="min-h-[58svh] flex flex-col items-center justify-center text-center px-8 pb-16">
+            <div className="relative mb-7">
+              <div className="absolute inset-0 scale-125 rounded-full bg-blue-1/15 blur-2xl" />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-blue-1 to-blue-2 rounded-[28px] flex items-center justify-center shadow-lg -rotate-3">
+                <MessageSquare size={38} className="text-white rotate-3" />
+              </div>
             </div>
-            <h3 className="font-poppins font-semibold text-lg text-text-dark mb-2">
-              No Messages Yet
+            <p className="font-inter text-[10px] uppercase tracking-[0.16em] font-bold text-blue-1 mb-2">Twoja sfora</p>
+            <h3 className="font-poppins font-bold text-xl text-text-dark mb-2">
+              Zacznij rozmowę
             </h3>
-            <p className="font-inter text-sm text-text-gray max-w-xs mx-auto mb-6">
-              Start connecting with other pet owners in your area
+            <p className="font-inter text-[13px] leading-5 text-text-gray max-w-[250px] mx-auto mb-7">
+              Zaproś znajomych lub poznaj opiekunów zwierząt w swojej okolicy.
             </p>
             <button
               onClick={() => setShowNewChat(true)}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-lime-gradient text-bg-dark font-poppins font-semibold text-sm active:scale-95 transition-transform"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-lime-gradient text-bg-dark font-poppins font-semibold text-sm shadow-glow active:scale-95 transition-transform"
             >
               <Plus size={16} strokeWidth={3} />
-              Start a conversation
+              Nowa rozmowa
             </button>
           </div>
         ) : (

@@ -443,9 +443,16 @@ p {
   background-color: var(--card);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
   box-shadow: var(--shadow-lg);
+  padding: 20px;
   position: relative;
   z-index: 10;
-  margin-top: -1.5rem;
+  /* Only screens with a real hero opt into overlap via -mt-6. Keeping this
+     neutral prevents a white card from covering a simple screen title. */
+  margin-top: 0;
+}
+
+.card-white.edge-to-edge {
+  padding: 16px 0 20px;
 }
 
 /* Status Pill Component */

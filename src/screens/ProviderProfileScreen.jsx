@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { ArrowLeft, Heart, Share2, Shield, Star, ChevronDown, MapPin, Clock, DollarSign } from 'lucide-react'
-import { getService, getOrCreateConversation } from '../firebase/services'
+import { getService, getOrCreateConversation, addFavorite, removeFavorite } from '../firebase/services'
 
 export default function ProviderProfileScreen() {
   const { t, goBack, navigate, selectedProviderId, lang, user } = useApp()
   const [provider, setProvider] = useState(null)
   const [loading, setLoading] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [savingFav, setSavingFav] = useState(false)
 
   useEffect(() => {
     if (!selectedProviderId) {
       console.log('No provider ID selected')
       return
     }
-    
+
     console.log('Fetching provider with ID:', selectedProviderId)
     setLoading(true)
     getService(selectedProviderId)
@@ -29,6 +30,26 @@ export default function ProviderProfileScreen() {
         setLoading(false)
       })
   }, [selectedProviderId])
+
+  const handleToggleFavorite = async () => {
+    if (!user?.uid || !provider?.id || savingFav) return
+
+    setSavingFav(true)
+    try {
+      if (isSaved) {
+        await removeFavorite(user.uid, provider.id)
+        setIsSaved(false)
+      } else {
+        await addFavorite(user.uid, provider.id)
+        setIsSaved(true)
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err)
+      alert('Failed to save favorite. Please try again.')
+    } finally {
+      setSavingFav(false)
+    }
+  }
 
   const handleShare = () => {
     if (navigator.share && provider) {
@@ -84,7 +105,11 @@ export default function ProviderProfileScreen() {
           <ArrowLeft size={20} className="text-foreground" />
         </button>
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsSaved(!isSaved)} className="w-11 h-11 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform">
+          <button
+            onClick={handleToggleFavorite}
+            disabled={savingFav}
+            className="w-11 h-11 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform disabled:opacity-50"
+          >
             <Heart size={20} className={isSaved ? 'text-destructive fill-destructive' : 'text-foreground'} />
           </button>
           <button onClick={handleShare} className="w-11 h-11 bg-card rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform">
