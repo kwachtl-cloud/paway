@@ -410,47 +410,44 @@ export async function getUsersInRadius(centerLat, centerLng, radiusInKm = 5) {
 // === PETS ===
 export async function addPet(ownerUid, petData) {
   if (!ownerUid) throw new Error('ownerUid required to add pet')
-  
-  const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  const pet = {
-    id: petId,
-    ...petData,
-    owner_uid: ownerUid,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-  
-  // On mobile, save to localStorage immediately (instant)
-  if (isNativePlatform()) {
-    console.log('📱 Mobile: Saving pet to localStorage (instant)')
-    const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-    existingPets.push(pet)
-    localStorage.setItem('paway_pets', JSON.stringify(existingPets))
-    return petId
-  }
-  
-  // On web, try Firebase with user-scoped subcollection
+
+  // Try Firebase first on ALL platforms (web + mobile)
   try {
     const userPetsRef = collection(db, 'users', ownerUid, 'pets')
-    const docRef = await withTimeout(
-      addDoc(userPetsRef, {
+    const docRef = await addDoc(userPetsRef, {
+      ...petData,
+      owner_uid: ownerUid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    console.log('✅ Pet saved to Firebase:', docRef.id)
+
+    // Also save to localStorage as cache on mobile
+    if (isNativePlatform()) {
+      const pet = {
+        id: docRef.id,
         ...petData,
         owner_uid: ownerUid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }),
-      3000,
-      () => {
-        // Fallback to localStorage
-        const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-        existingPets.push(pet)
-        localStorage.setItem('paway_pets', JSON.stringify(existingPets))
-        return { id: petId }
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }
-    )
+      const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+      existingPets.push(pet)
+      localStorage.setItem('paway_pets', JSON.stringify(existingPets))
+    }
+
     return docRef.id
   } catch (error) {
-    console.warn('Firebase unavailable, using localStorage:', error.message)
+    console.error('❌ Firebase save failed:', error.message)
+    // Only fallback to localStorage if Firebase completely fails
+    const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const pet = {
+      id: petId,
+      ...petData,
+      owner_uid: ownerUid,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
     const existingPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     existingPets.push(pet)
     localStorage.setItem('paway_pets', JSON.stringify(existingPets))
@@ -463,44 +460,45 @@ export async function getPets(ownerUid) {
     console.warn('getPets called without ownerUid')
     return []
   }
-  
-  // Read from localStorage for instant loading
-  const getFromLocalStorage = () => {
-    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-    return allPets
-      .filter(p => p.owner_uid === ownerUid)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }
-  
-  // On mobile, use localStorage as primary (instant loading)
-  if (isNativePlatform()) {
-    console.log('📱 Mobile: Loading pets from localStorage (instant)')
-    return getFromLocalStorage()
-  }
-  
-  // On web, try Firebase with user-scoped subcollection
+
+  // Try Firebase first on ALL platforms
   try {
-    // Try new path first: /users/{uid}/pets
     const userPetsRef = collection(db, 'users', ownerUid, 'pets')
     const q = query(userPetsRef, orderBy('createdAt', 'desc'))
-    const snap = await withTimeout(getDocs(q), 3000, getFromLocalStorage)
-    
+    const snap = await getDocs(q)
+
     if (snap.docs && snap.docs.length > 0) {
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const pets = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      console.log('✅ Loaded', pets.length, 'pets from Firebase')
+      return pets
     }
-    
+
     // Fallback to old path for backward compatibility
     const oldQ = query(
-      collection(db, 'pets'), 
+      collection(db, 'pets'),
       where('owner_uid', '==', ownerUid),
       orderBy('createdAt', 'desc')
     )
-    const oldSnap = await withTimeout(getDocs(oldQ), 2000, getFromLocalStorage)
-    return oldSnap.docs ? oldSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : oldSnap
+    const oldSnap = await getDocs(oldQ)
+    if (oldSnap.docs && oldSnap.docs.length > 0) {
+      const pets = oldSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      console.log('✅ Loaded', pets.length, 'pets from Firebase (old path)')
+      return pets
+    }
   } catch (error) {
-    console.warn('Firebase unavailable, using localStorage:', error.message)
-    return getFromLocalStorage()
+    console.warn('⚠️ Firebase unavailable:', error.message)
   }
+
+  // Only use localStorage as fallback
+  const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+  const localPets = allPets
+    .filter(p => p.owner_uid === ownerUid)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  if (localPets.length > 0) {
+    console.log('✅ Loaded', localPets.length, 'pets from localStorage (fallback)')
+  }
+  return localPets
 }
 
 export async function getPet(petId) {
@@ -515,9 +513,48 @@ export async function getPet(petId) {
 }
 
 export async function updatePet(petId, data) {
-  // On mobile, update localStorage immediately
-  if (isNativePlatform()) {
-    console.log('📱 Mobile: Updating pet in localStorage (instant)')
+  // Try Firebase first on ALL platforms
+  try {
+    // Try new path first (users/{uid}/pets)
+    const petsRef = collection(db, 'users')
+    const q = query(
+      collectionGroup('pets'),
+      where(documentId(), '==', petId)
+    )
+
+    const snap = await getDocs(q)
+    if (snap.docs.length > 0) {
+      const petDoc = snap.docs[0]
+      await updateDoc(petDoc.ref, {
+        ...data,
+        updatedAt: serverTimestamp(),
+      })
+      console.log('✅ Pet updated in Firebase:', petId)
+    } else {
+      // Fallback to old path
+      await updateDoc(doc(db, 'pets', petId), {
+        ...data,
+        updatedAt: serverTimestamp(),
+      })
+      console.log('✅ Pet updated in Firebase (old path):', petId)
+    }
+
+    // Also update localStorage cache on mobile
+    if (isNativePlatform()) {
+      const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
+      const index = allPets.findIndex(p => p.id === petId)
+      if (index !== -1) {
+        allPets[index] = {
+          ...allPets[index],
+          ...data,
+          updatedAt: new Date().toISOString(),
+        }
+        localStorage.setItem('paway_pets', JSON.stringify(allPets))
+      }
+    }
+  } catch (error) {
+    console.error('❌ Firebase update failed:', error.message)
+    // Fallback to localStorage
     const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     const index = allPets.findIndex(p => p.id === petId)
     if (index !== -1) {
@@ -528,62 +565,36 @@ export async function updatePet(petId, data) {
       }
       localStorage.setItem('paway_pets', JSON.stringify(allPets))
     }
-    return
-  }
-  
-  // On web, try Firebase with timeout
-  try {
-    await withTimeout(
-      updateDoc(doc(db, 'pets', petId), {
-        ...data,
-        updatedAt: serverTimestamp(),
-      }),
-      3000,
-      () => {
-        // Fallback
-        const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-        const index = allPets.findIndex(p => p.id === petId)
-        if (index !== -1) {
-          allPets[index] = { ...allPets[index], ...data, updatedAt: new Date().toISOString() }
-          localStorage.setItem('paway_pets', JSON.stringify(allPets))
-        }
-      }
-    )
-  } catch (error) {
-    console.warn('Firebase unavailable, using localStorage')
-    const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-    const index = allPets.findIndex(p => p.id === petId)
-    if (index !== -1) {
-      allPets[index] = { ...allPets[index], ...data, updatedAt: new Date().toISOString() }
-      localStorage.setItem('paway_pets', JSON.stringify(allPets))
-    }
   }
 }
 
 export async function deletePet(petId) {
-  // On mobile, delete from localStorage immediately
-  if (isNativePlatform()) {
-    console.log('📱 Mobile: Deleting pet from localStorage (instant)')
+  // Try Firebase first on ALL platforms
+  try {
+    // Try new path first (users/{uid}/pets)
+    const q = query(
+      collectionGroup('pets'),
+      where(documentId(), '==', petId)
+    )
+
+    const snap = await getDocs(q)
+    if (snap.docs.length > 0) {
+      const petDoc = snap.docs[0]
+      await deleteDoc(petDoc.ref)
+      console.log('✅ Pet deleted from Firebase:', petId)
+    } else {
+      // Fallback to old path
+      await deleteDoc(doc(db, 'pets', petId))
+      console.log('✅ Pet deleted from Firebase (old path):', petId)
+    }
+
+    // Also delete from localStorage cache
     const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     const filtered = allPets.filter(p => p.id !== petId)
     localStorage.setItem('paway_pets', JSON.stringify(filtered))
-    return
-  }
-  
-  // On web, try Firebase with timeout
-  try {
-    await withTimeout(
-      deleteDoc(doc(db, 'pets', petId)),
-      3000,
-      () => {
-        // Fallback
-        const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
-        const filtered = allPets.filter(p => p.id !== petId)
-        localStorage.setItem('paway_pets', JSON.stringify(filtered))
-      }
-    )
   } catch (error) {
-    console.warn('Firebase unavailable, using localStorage')
+    console.error('❌ Firebase delete failed:', error.message)
+    // Fallback to localStorage
     const allPets = JSON.parse(localStorage.getItem('paway_pets') || '[]')
     const filtered = allPets.filter(p => p.id !== petId)
     localStorage.setItem('paway_pets', JSON.stringify(filtered))
